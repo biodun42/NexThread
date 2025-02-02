@@ -13,140 +13,55 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation, Pagination } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/navigation";
-import "swiper/css/pagination";
+import { Navigation, Pagination, A11y } from "swiper/modules";
 import Trending from "../UI/Trending";
 import SuggestedFollower from "../UI/SuggestedFollower";
 import { db, postsCollection } from "../Firebase/Firebase";
 import { getDocs } from "firebase/firestore";
 
-const AdvancedImageCarousel = ({ images }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const [touchStart, setTouchStart] = useState(0);
-
-  const containerRef = useRef(null);
-
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    setStartX(e.pageX - containerRef.current.offsetLeft);
-    setScrollLeft(containerRef.current.scrollLeft);
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    e.preventDefault();
-    const x = e.pageX - containerRef.current.offsetLeft;
-    const walk = (x - startX) * 2;
-    containerRef.current.scrollLeft = scrollLeft - walk;
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    // Snap to nearest slide
-    if (containerRef.current) {
-      const slideWidth = containerRef.current.offsetWidth;
-      const currentScroll = containerRef.current.scrollLeft;
-      const nearestSlide = Math.round(currentScroll / slideWidth);
-      setCurrentIndex(nearestSlide);
-      containerRef.current.scrollTo({
-        left: nearestSlide * slideWidth,
-        behavior: "smooth",
-      });
-    }
-  };
-
-  const handleTouchStart = (e) => {
-    setTouchStart(e.touches[0].clientX);
-  };
-
-  const handleTouchMove = (e) => {
-    if (!touchStart) return;
-    const currentTouch = e.touches[0].clientX;
-    const diff = touchStart - currentTouch;
-    if (containerRef.current) {
-      containerRef.current.scrollLeft += diff;
-    }
-    setTouchStart(currentTouch);
-  };
-
-  const goToSlide = (index) => {
-    setCurrentIndex(index);
-    containerRef.current?.scrollTo({
-      left: index * containerRef.current.offsetWidth,
-      behavior: "smooth",
-    });
-  };
-
+const ModernImageCarousel = ({ images }) => {
   return (
-    <div className="relative group w-full">
-      <div
-        ref={containerRef}
-        className="overflow-hidden relative"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={() => setTouchStart(0)}
+    <div className="relative group">
+      <Swiper
+        modules={[Navigation, Pagination, A11y]}
+        spaceBetween={0}
+        slidesPerView={1}
+        navigation={{
+          prevEl: ".swiper-button-prev",
+          nextEl: ".swiper-button-next",
+        }}
+        pagination={{
+          clickable: true,
+          el: ".swiper-pagination",
+          bulletActiveClass: "bg-white w-4",
+          bulletClass:
+            "inline-block w-2 h-2 rounded-full bg-white/50 mx-1 transition-all duration-300 hover:bg-white/75 cursor-pointer",
+        }}
+        loop={true}
+        className="w-full rounded-lg overflow-hidden"
       >
-        <div
-          className="flex transition-transform duration-300 ease-out"
-          // style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-        >
-          {images.map((image, index) => (
-            <div
-              key={index}
-              className="min-w-full relative"
-            >
+        {images.map((image, index) => (
+          <SwiperSlide key={index}>
+            <div className="aspect-w-16 aspect-h-9">
               <img
                 src={image.url}
                 alt={`Slide ${index + 1}`}
                 className="w-full h-full object-cover"
-                draggable={false}
               />
             </div>
-          ))}
-        </div>
-      </div>
+          </SwiperSlide>
+        ))}
 
-      {/* Navigation Buttons */}
-      {currentIndex > 0 && (
-        <button
-          onClick={() => goToSlide(currentIndex - 1)}
-          className="absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white"
-        >
+        <button className="swiper-button-prev absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white z-10">
           <ChevronLeft className="w-5 h-5 text-gray-700" />
         </button>
-      )}
-      {currentIndex < images.length - 1 && (
-        <button
-          onClick={() => goToSlide(currentIndex + 1)}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white"
-        >
+
+        <button className="swiper-button-next absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white z-10">
           <ChevronRight className="w-5 h-5 text-gray-700" />
         </button>
-      )}
 
-      {/* Progress Dots */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1">
-        {images.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`w-2 h-2 rounded-full transition-all duration-300 ${
-              index === currentIndex
-                ? "bg-white w-4"
-                : "bg-white/50 hover:bg-white/75"
-            }`}
-          />
-        ))}
-      </div>
+        <div className="swiper-pagination absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1 z-10" />
+      </Swiper>
     </div>
   );
 };
@@ -501,7 +416,7 @@ const HomeSection = () => {
 
                   {/* Post Content */}
                   {post.images && post.images.length > 0 && (
-                    <AdvancedImageCarousel images={post.images} />
+                    <ModernImageCarousel images={post.images} />
                   )}
 
                   {/* Post Actions */}
