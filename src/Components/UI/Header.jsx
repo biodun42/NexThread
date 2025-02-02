@@ -9,28 +9,29 @@ import {
   Settings,
   LogOut,
   Camera,
-  X,
   ChevronLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { auth, usersCollection, db } from "../Firebase/Firebase";
 import {
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  onSnapshot,
-} from "firebase/firestore";
+  auth,
+  usersCollection,
+  db,
+  usersFriendsCollection,
+  postsCollection,
+  messagesCollection,
+} from "../Firebase/Firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import CreatePostModal from "../Modal/CreatePostModal";
+import Logo from "../../assets/logo.svg";
+import { useStateContext } from "../Context/Statecontext";
 
-const Header = ({ isOpen, setIsOpen }) => {
+const Header = () => {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
-  const [user, setUser] = useState(null);
+  const { user, setUser } = useStateContext();
   const [notifications, setNotifications] = useState([]);
   const [messages, setMessages] = useState([]);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -52,7 +53,7 @@ const Header = ({ isOpen, setIsOpen }) => {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      setUser(user ? user : null);
+      setUser(user ? user.uid : null);
       if (user) {
         const userDoc = await getDoc(doc(usersCollection, user.uid));
         if (userDoc.exists()) {
@@ -60,47 +61,52 @@ const Header = ({ isOpen, setIsOpen }) => {
           setUserAvatar(userDoc.data().ProfilePic || "");
           setName(userDoc.data().Name);
         }
-
-        // Listen for notifications
-        const notificationsQuery = query(
-          collection(db, "notifications"),
-          where("userId", "==", user.uid),
-          where("read", "==", false)
-        );
-
-        onSnapshot(notificationsQuery, (snapshot) => {
-          setNotifications(
-            snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }))
-          );
-        });
-
-        // Listen for messages
-        const messagesQuery = query(
-          collection(db, "messages"),
-          where("recipientId", "==", user.uid),
-          where("read", "==", false)
-        );
-
-        onSnapshot(messagesQuery, (snapshot) => {
-          setMessages(
-            snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }))
-          );
-        });
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  const handlePostSubmit = (postData) => {
-    console.log("Post Data:", postData);
-  };
+  useEffect(() => {
+    const CheckForArrays = async () => {
+      if (!user) return;
+
+      try {
+        const usersFriendRef = doc(usersFriendsCollection, user);
+        const usersPostsRef = doc(postsCollection, user);
+        const usersMessagesRef = doc(messagesCollection, user);
+
+        const usersFriendSnap = await getDoc(usersFriendRef);
+        const usersPostsSnap = await getDoc(usersPostsRef);
+        const usersMessagesSnap = await getDoc(usersMessagesRef);
+
+        if (!usersFriendSnap.exists()) {
+          await setDoc(usersFriendRef, { friends: [] });
+          console.log("Friends array created");
+        } else {
+          console.log("Friends array exists");
+        }
+
+        if (!usersPostsSnap.exists()) {
+          await setDoc(usersPostsRef, { posts: [] });
+          console.log("Posts array created");
+        } else {
+          console.log("Posts array exists");
+        }
+
+        if (!usersMessagesSnap.exists()) {
+          await setDoc(usersMessagesRef, { messages: [] });
+          console.log("Messages array created");
+        } else {
+          console.log("Messages array exists");
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+
+    CheckForArrays();
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -251,12 +257,19 @@ const Header = ({ isOpen, setIsOpen }) => {
     <>
       <header className="sticky top-0 z-40 bg-gradient-to-r from-gray-900 to-gray-800">
         <div className="max-w-full backdrop-blur-sm bg-black/5">
-          <div className="flex items-center justify-between h-16 px-4">
+          <div className="flex items-center justify-between lg:justify-end h-16 px-4">
             {/* Left Section */}
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 text-transparent bg-clip-text">
-                <i>NexThread</i>
-              </h1>
+            <div className="lg:hidden block">
+              <div className="flex items-center gap-2">
+                <img
+                  src={Logo}
+                  alt="App Logo"
+                  className="w-10 h-10 rounded-full"
+                />
+                <h1 className="text-xl font-bold text-white tracking-tight">
+                  NexThread
+                </h1>
+              </div>
             </div>
 
             {/* Right Section - Desktop */}
@@ -466,7 +479,6 @@ const Header = ({ isOpen, setIsOpen }) => {
       <CreatePostModal
         isOpen={isCreatePostModalOpen}
         onClose={() => setIsCreatePostModalOpen(false)}
-        onSubmit={handlePostSubmit}
       />
     </>
   );

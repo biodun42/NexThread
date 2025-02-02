@@ -77,6 +77,7 @@ const AuthSection = () => {
           id: userCredential.user.uid,
           Name: name,
           Email: email,
+          Username : email.split("@")[0],
           ProfilePicture: null,
           Initials: getInitials(name),
           CreatedAt: new Date(),
@@ -147,7 +148,7 @@ const AuthSection = () => {
                   <input
                     type="text"
                     className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-lg text-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all duration-200"
-                    placeholder="Enter your Full Name"
+                    placeholder="Enter your First and Last Name"
                     required
                   />
                 </div>

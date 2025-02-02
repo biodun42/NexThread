@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Home, Cloud, CloudRain } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const PageNotFound = () => {
   // Animation variants
@@ -26,6 +27,7 @@ const PageNotFound = () => {
     },
   };
 
+  const navigate = useNavigate();
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
       {/* Decorative Elements */}
@@ -90,7 +92,7 @@ const PageNotFound = () => {
         {/* Button */}
         <motion.button
           className="mt-6 px-6 py-3 bg-gradient-to-r from-purple-600 to-orange-600 text-white font-bold text-base md:text-lg rounded-lg shadow-md hover:shadow-lg transform hover:scale-105 transition-transform duration-300 flex items-center gap-2"
-          onClick={() => (window.location.href = "/home")}
+          onClick={() => navigate("/")}
           variants={itemVariants}
         >
           <Home className="w-5 h-5" />
