@@ -12,7 +12,6 @@ import {
 } from "firebase/firestore";
 import {
   db,
-  postsCollection,
   notificationsCollection,
   usersCollection,
 } from "../Firebase/Firebase";
@@ -415,8 +414,17 @@ const CreatePostModal = ({ isOpen, onClose }) => {
       };
 
       // Add post to Firestore
+      const postsCollection = collection(db, "Posts");
       const usersPostsRef = doc(postsCollection, user);
-      await setDoc(usersPostsRef, { posts: postData }, { merge: true });
+      const userDocSnapshot = await getDoc(usersPostsRef);
+      const existingPosts = userDocSnapshot.exists()
+        ? userDocSnapshot.data().posts
+        : [];
+      await setDoc(
+        usersPostsRef,
+        { posts: [...existingPosts, postData] },
+        { merge: true }
+      );
 
       // Notify mentioned users
       const notificationUpdates = extractedMentions.map(async (mention) => {

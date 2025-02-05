@@ -12,60 +12,82 @@ import {
   ChevronRight,
   ZoomIn,
 } from "lucide-react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation, Pagination, A11y } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
 import Trending from "../UI/Trending";
 import SuggestedFollower from "../UI/SuggestedFollower";
-import { db, postsCollection } from "../Firebase/Firebase";
+import { postsCollection } from "../Firebase/Firebase";
 import { getDocs } from "firebase/firestore";
+import { Cube } from "react-preloaders";
 
-const ModernImageCarousel = ({ images }) => {
+
+const AdvancedImageCarousel = ({ images }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const containerRef = useRef(null);
+
+  const goToSlide = (index) => {
+    if (!containerRef.current) return;
+    setCurrentIndex(index);
+    containerRef.current.scrollTo({
+      left: index * containerRef.current.clientWidth,
+      behavior: "smooth",
+    });
+  };
+
   return (
-    <div className="relative group">
-      <Swiper
-        modules={[Navigation, Pagination, A11y]}
-        spaceBetween={0}
-        slidesPerView={1}
-        navigation={{
-          prevEl: ".swiper-button-prev",
-          nextEl: ".swiper-button-next",
-        }}
-        pagination={{
-          clickable: true,
-          el: ".swiper-pagination",
-          bulletActiveClass: "bg-white w-4",
-          bulletClass:
-            "inline-block w-2 h-2 rounded-full bg-white/50 mx-1 transition-all duration-300 hover:bg-white/75 cursor-pointer",
-        }}
-        loop={true}
-        className="w-full rounded-lg overflow-hidden"
+    <div className="relative w-full max-w-2xl mx-auto overflow-hidden">
+      <div
+        ref={containerRef}
+        className="sidebar flex overflow-x-auto scroll-snap-x-mandatory scroll-smooth no-scrollbar"
       >
         {images.map((image, index) => (
-          <SwiperSlide key={index}>
-            <div className="aspect-w-16 aspect-h-9">
-              <img
-                src={image.url}
-                alt={`Slide ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </SwiperSlide>
+          <div key={index} className="w-full flex-shrink-0 snap-center">
+            <img
+              src={image.url}
+              alt={`Slide ${index + 1}`}
+              className="w-full h-64 sm:h-96 object-cover rounded-lg shadow-lg"
+              draggable={false}
+            />
+          </div>
         ))}
+      </div>
 
-        <button className="swiper-button-prev absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white z-10">
-          <ChevronLeft className="w-5 h-5 text-gray-700" />
-        </button>
+      {/* Navigation Buttons */}
+      <button
+        onClick={() => goToSlide(currentIndex - 1)}
+        className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full shadow-md transition-all hover:bg-white ${
+          currentIndex === 0 ? "opacity-0" : "opacity-100"
+        }`}
+      >
+        <ChevronLeft className="w-5 h-5 text-gray-700" />
+      </button>
+      <button
+        onClick={() => goToSlide(currentIndex + 1)}
+        className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full shadow-md transition-all hover:bg-white ${
+          currentIndex === images.length - 1 ? "opacity-0" : "opacity-100"
+        }`}
+      >
+        <ChevronRight className="w-5 h-5 text-gray-700" />
+      </button>
 
-        <button className="swiper-button-next absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white z-10">
-          <ChevronRight className="w-5 h-5 text-gray-700" />
-        </button>
-
-        <div className="swiper-pagination absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1 z-10" />
-      </Swiper>
+      {/* Progress Dots */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+        {images.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => goToSlide(index)}
+            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+              index === currentIndex
+                ? "bg-white scale-125"
+                : "bg-gray-300 hover:bg-gray-400"
+            }`}
+          />
+        ))}
+      </div>
     </div>
   );
 };
-
 const HomeSection = () => {
   // Previous state declarations remain the same
   const [posts, setPosts] = useState([]);
@@ -76,6 +98,7 @@ const HomeSection = () => {
   const [error, setError] = useState("");
   const [charCount, setCharCount] = useState(0);
   const [dragOver, setDragOver] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Constants remain the same
   const MAX_CHAR_COUNT = 500;
@@ -95,20 +118,30 @@ const HomeSection = () => {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
+        setLoading(true);
+
         const postsSnapshot = await getDocs(postsCollection);
-        const postsData = postsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data().posts,
-        }));
-        console.log("Fetched posts:", postsData);
-        setPosts(postsData);
+        const postsList = postsSnapshot.docs
+          .map((doc) => doc.data().posts)
+          .flat();
+        setPosts(postsList);
       } catch (error) {
         console.error("Error fetching posts:", error);
+      }finally{
+        setLoading(false);
       }
     };
 
     fetchPosts();
   }, []);
+
+  if(loading){
+    return (
+      <div>
+        <Cube />
+      </div>
+    )
+  }
 
   // Handle content changes
   const handleContentChange = (e) => {
@@ -416,7 +449,7 @@ const HomeSection = () => {
 
                   {/* Post Content */}
                   {post.images && post.images.length > 0 && (
-                    <ModernImageCarousel images={post.images} />
+                    <AdvancedImageCarousel images={post.images} />
                   )}
 
                   {/* Post Actions */}

@@ -75,7 +75,7 @@ const Sidebar = () => {
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "tween" }}
-      className="fixed inset-0 z-50 bg-gradient-to-br from-gray-900 to-gray-800"
+      className="fixed inset-0 bg-gradient-to-br from-gray-900 to-gray-800"
     >
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
@@ -173,7 +173,7 @@ const Sidebar = () => {
   );
 
   const MobileNavigation = () => (
-    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-b from-gray-900 to-gray-800 border-t border-gray-800 shadow-2xl">
+    <div className="fixed z-50 bottom-0 left-0 right-0 bg-gradient-to-b from-gray-900 to-gray-800 border-t border-gray-800 shadow-2xl">
       <div className="flex justify-around items-center p-3">
         {menuItems.slice(0, 5).map((item, index) => (
           <button

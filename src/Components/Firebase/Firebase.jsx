@@ -20,5 +20,5 @@ export const usersCollection = collection(db, "Users");
 export const usersFriendsCollection = collection(db, "UsersFriends");
 export const postsCollection = collection(db, "Posts");
 export const messagesCollection = collection(db, "Messages");
-export const notificationsCollection = collection(db, "Notifications");
+export const notificationsCollection = collection(db, "Notifications"); 
 export default app;

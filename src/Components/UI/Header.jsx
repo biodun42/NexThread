@@ -15,9 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   auth,
   usersCollection,
-  db,
   usersFriendsCollection,
-  postsCollection,
   messagesCollection,
 } from "../Firebase/Firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -29,7 +27,7 @@ import { useStateContext } from "../Context/Statecontext";
 const Header = () => {
   const navigate = useNavigate();
   const [name, setName] = useState("");
-  const [userName, setUserName] = useState("");
+  const [initials, setInitials] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
   const { user, setUser } = useStateContext();
   const [notifications, setNotifications] = useState([]);
@@ -57,8 +55,8 @@ const Header = () => {
       if (user) {
         const userDoc = await getDoc(doc(usersCollection, user.uid));
         if (userDoc.exists()) {
-          setUserName(userDoc.data().Initials);
-          setUserAvatar(userDoc.data().ProfilePic || "");
+          setInitials(userDoc.data().Initials);
+          setUserAvatar(userDoc.data().ProfilePicture || "");
           setName(userDoc.data().Name);
         }
       }
@@ -73,11 +71,9 @@ const Header = () => {
 
       try {
         const usersFriendRef = doc(usersFriendsCollection, user);
-        const usersPostsRef = doc(postsCollection, user);
         const usersMessagesRef = doc(messagesCollection, user);
 
         const usersFriendSnap = await getDoc(usersFriendRef);
-        const usersPostsSnap = await getDoc(usersPostsRef);
         const usersMessagesSnap = await getDoc(usersMessagesRef);
 
         if (!usersFriendSnap.exists()) {
@@ -85,13 +81,6 @@ const Header = () => {
           console.log("Friends array created");
         } else {
           console.log("Friends array exists");
-        }
-
-        if (!usersPostsSnap.exists()) {
-          await setDoc(usersPostsRef, { posts: [] });
-          console.log("Posts array created");
-        } else {
-          console.log("Posts array exists");
         }
 
         if (!usersMessagesSnap.exists()) {
@@ -164,7 +153,7 @@ const Header = () => {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* User Profile Section */}
           <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg">
-            <UserProfile profilePic={userAvatar} initials={userName} />
+            <UserProfile profilePic={userAvatar} initials={initials} />
             <div>
               <h3 className="text-white font-medium">{name}</h3>
               <p className="text-sm text-gray-400">View Profile</p>
@@ -172,20 +161,13 @@ const Header = () => {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
             <button
               onClick={() => setIsCreatePostModalOpen(true)}
               className="flex items-center justify-center gap-2 p-4 bg-violet-600 text-white rounded-lg"
             >
               <Plus size={20} />
               Create Post
-            </button>
-            <button
-              onClick={() => navigate("/stories/create")}
-              className="flex items-center justify-center gap-2 p-4 bg-gray-800 text-white rounded-lg"
-            >
-              <Camera size={20} />
-              New Story
             </button>
           </div>
 
@@ -400,7 +382,7 @@ const Header = () => {
                     onClick={() => setShowProfileMenu(!showProfileMenu)}
                     className="flex items-center gap-2"
                   >
-                    <UserProfile profilePic={userAvatar} initials={userName} />
+                    <UserProfile profilePic={userAvatar} initials={initials} />
                   </motion.button>
 
                   <AnimatePresence>
@@ -462,7 +444,7 @@ const Header = () => {
                   onClick={() => setShowMobileMenu(true)}
                   className="flex items-center gap-2"
                 >
-                  <UserProfile profilePic={userAvatar} initials={userName} />
+                  <UserProfile profilePic={userAvatar} initials={initials} />
                 </motion.button>
               </div>
             )}
