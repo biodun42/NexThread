@@ -1,13 +1,13 @@
-import { TrendingUp } from 'lucide-react';
-import React, { useState } from 'react'
+import { TrendingUp } from "lucide-react";
+import React, { useState } from "react";
 
 const Trending = () => {
-    const [trendingTopics, setTrendingTopics] = useState([
-        { tag: "#photography", posts: "12.5k" },
-        { tag: "#technology", posts: "10.2k" },
-        { tag: "#travel", posts: "8.7k" },
-        { tag: "#food", posts: "7.3k" },
-      ]);
+  const [trendingTopics, setTrendingTopics] = useState([
+    { tag: "#photography", posts: "12.5k" },
+    { tag: "#technology", posts: "10.2k" },
+    { tag: "#travel", posts: "8.7k" },
+    { tag: "#food", posts: "7.3k" },
+  ]);
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
       <div className="flex items-center space-x-2 mb-4">
@@ -32,6 +32,6 @@ const Trending = () => {
       </div>
     </div>
   );
-}
+};
 
-export default Trending
+export default Trending;

@@ -18,7 +18,7 @@ import "swiper/css/pagination";
 import Trending from "../UI/Trending";
 import SuggestedFollower from "../UI/SuggestedFollower";
 import { postsCollection } from "../Firebase/Firebase";
-import { getDocs } from "firebase/firestore";
+import { getDocs, query, orderBy, limit } from "firebase/firestore";
 import { Cube } from "react-preloaders";
 
 
@@ -116,24 +116,39 @@ const HomeSection = () => {
   const textareaRef = useRef(null);
   const dropZoneRef = useRef(null);
   useEffect(() => {
+    let isMounted = true;
+
     const fetchPosts = async () => {
       try {
         setLoading(true);
-
-        const postsSnapshot = await getDocs(postsCollection);
-        const postsList = postsSnapshot.docs
-          .map((doc) => doc.data().posts)
-          .flat();
-        setPosts(postsList);
+        const postsSnapshot = await getDocs(query(
+          postsCollection,
+          orderBy('timestamp', 'desc'),
+          limit(20)
+        ));
+        
+        if (isMounted) {
+          const postsList = postsSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data() // Remove .posts if data is not nested
+          }));
+          setPosts(postsList);
+        }
       } catch (error) {
         console.error("Error fetching posts:", error);
-      }finally{
-        setLoading(false);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchPosts();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if(loading){
     return (
