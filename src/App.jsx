@@ -1,4 +1,4 @@
-import { Route, Routes, Navigate } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Home from "./Pages/Home";
@@ -11,8 +11,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Auth />} />
         <Route path="/home" element={<Home />} />
-        <Route path="*" element={<Navigate to="/404" replace />} />
-        <Route path="/404" element={<PageNotFound />} />
+        <Route path="*" element={<PageNotFound />} />
       </Routes>
       <ToastContainer />
     </>
