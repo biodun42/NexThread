@@ -12,11 +12,8 @@ const Home = () => {
       <div className="flex bg-[#F7F8FC] h-screen">
         <Sidebar isOpen={isOpen} setIsOpen={setIsOpen} />
         <div className="sidebar flex-1 flex flex-col overflow-y-scroll">
-          <Header
-            isOpen={isOpen}
-            setIsOpen={setIsOpen}
-          />
-          <div className="flex flex-col gap-8">
+          <Header isOpen={isOpen} setIsOpen={setIsOpen} />
+          <div className="flex flex-col gap-8 bg-gray-900">
             <HomeSection />
           </div>
         </div>

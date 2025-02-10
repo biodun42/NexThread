@@ -8,503 +8,218 @@ import {
   Image as ImageIcon,
   Smile,
   UserRound,
-  ChevronLeft,
-  ChevronRight,
-  ZoomIn,
+  Camera,
+  Hash,
+  Sparkles,
+  X,
+  Plus,
 } from "lucide-react";
-import "swiper/css";
-import "swiper/css/navigation";
-import "swiper/css/pagination";
+import ImageCarousel from "../UI/ImageCarousel";
 import Trending from "../UI/Trending";
 import SuggestedFollower from "../UI/SuggestedFollower";
-import { postsCollection } from "../Firebase/Firebase";
-import { getDocs, query, orderBy, limit } from "firebase/firestore";
-import { Cube } from "react-preloaders";
+import { getDocs, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, setDoc } from "firebase/firestore";
+import { postsCollection, db } from "../Firebase/Firebase";
+import CreatePostModal from "../Modal/CreatePostModal";
+import { useStateContext } from '../Context/Statecontext';
 
-
-const AdvancedImageCarousel = ({ images }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const containerRef = useRef(null);
-
-  const goToSlide = (index) => {
-    if (!containerRef.current) return;
-    setCurrentIndex(index);
-    containerRef.current.scrollTo({
-      left: index * containerRef.current.clientWidth,
-      behavior: "smooth",
-    });
-  };
-
-  return (
-    <div className="relative w-full max-w-2xl mx-auto overflow-hidden">
-      <div
-        ref={containerRef}
-        className="sidebar flex overflow-x-auto scroll-snap-x-mandatory scroll-smooth no-scrollbar"
-      >
-        {images.map((image, index) => (
-          <div key={index} className="w-full flex-shrink-0 snap-center">
-            <img
-              src={image.url}
-              alt={`Slide ${index + 1}`}
-              className="w-full h-64 sm:h-96 object-cover rounded-lg shadow-lg"
-              draggable={false}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Navigation Buttons */}
-      <button
-        onClick={() => goToSlide(currentIndex - 1)}
-        className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full shadow-md transition-all hover:bg-white ${
-          currentIndex === 0 ? "opacity-0" : "opacity-100"
-        }`}
-      >
-        <ChevronLeft className="w-5 h-5 text-gray-700" />
-      </button>
-      <button
-        onClick={() => goToSlide(currentIndex + 1)}
-        className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full shadow-md transition-all hover:bg-white ${
-          currentIndex === images.length - 1 ? "opacity-0" : "opacity-100"
-        }`}
-      >
-        <ChevronRight className="w-5 h-5 text-gray-700" />
-      </button>
-
-      {/* Progress Dots */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-        {images.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              index === currentIndex
-                ? "bg-white scale-125"
-                : "bg-gray-300 hover:bg-gray-400"
-            }`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
 const HomeSection = () => {
-  // Previous state declarations remain the same
+  const { user } = useStateContext();
+  const [likedPosts, setLikedPosts] = useState([]); // Add this state
   const [posts, setPosts] = useState([]);
-  const [content, setContent] = useState("");
-  const [images, setImages] = useState([]);
-  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
-  const [imageUploadProgress, setImageUploadProgress] = useState({});
-  const [error, setError] = useState("");
-  const [charCount, setCharCount] = useState(0);
-  const [dragOver, setDragOver] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Constants remain the same
-  const MAX_CHAR_COUNT = 500;
-  const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-  const MAX_IMAGES = 4;
-  const ALLOWED_IMAGE_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-  ];
-
-  // Previous refs and useEffect remain the same
-  const fileInputRef = useRef(null);
-  const textareaRef = useRef(null);
-  const dropZoneRef = useRef(null);
+  // Real-time posts subscription
   useEffect(() => {
-    let isMounted = true;
+    // Subscribe to posts collection
+    const unsubscribe = onSnapshot(postsCollection, (snapshot) => {
+      const allPosts = [];
+      snapshot.forEach((doc) => {
+        if (doc.data().posts) {
+          allPosts.push(...doc.data().posts);
+        }
+      });
+      // Sort posts by timestamp in descending order
+      const sortedPosts = allPosts.sort((a, b) => 
+        new Date(b.timestamp) - new Date(a.timestamp)
+      );
+      setPosts(sortedPosts);
+    });
 
-    const fetchPosts = async () => {
-      try {
-        setLoading(true);
-        const postsSnapshot = await getDocs(query(
-          postsCollection,
-          orderBy('timestamp', 'desc'),
-          limit(20)
-        ));
-        
-        if (isMounted) {
-          const postsList = postsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data() // Remove .posts if data is not nested
-          }));
-          setPosts(postsList);
-        }
-      } catch (error) {
-        console.error("Error fetching posts:", error);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+    // Cleanup subscription
+    return () => unsubscribe();
+  }, []);
+
+  // Add this useEffect to fetch user's liked posts
+  useEffect(() => {
+    if (!user?.uid) return;
+    
+    const userLikesDoc = doc(db, "userLikes", user.uid);
+    const unsubscribe = onSnapshot(userLikesDoc, (doc) => {
+      if (doc.exists()) {
+        setLikedPosts(doc.data().likedPosts || []);
       }
-    };
+    });
 
-    fetchPosts();
+    return () => unsubscribe();
+  }, [user]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Update handleLike function
+  const handleLike = async (postId, userId) => {
+    try {
+      if (!user) return;
 
-  if(loading){
-    return (
-      <div>
-        <Cube />
-      </div>
-    )
-  }
+      const userDoc = doc(postsCollection, userId);
+      const userLikesDoc = doc(db, "userLikes", user.uid);
+      const currentPost = posts.find(post => post.postId === postId);
+      
+      if (!currentPost) return;
 
-  // Handle content changes
-  const handleContentChange = (e) => {
-    const newContent = e.target.value;
-    if (newContent.length <= MAX_CHAR_COUNT) {
-      setContent(newContent);
-      setCharCount(newContent.length);
-    }
-  };
+      const hasLiked = likedPosts.includes(postId);
 
-  // Handle drag and drop
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = async (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    const files = Array.from(e.dataTransfer.files);
-    await handleFiles(files);
-  };
-
-  // Handle files
-  const handleFiles = async (files) => {
-    if (images.length + files.length > MAX_IMAGES) {
-      setError(`Maximum ${MAX_IMAGES} images allowed`);
-      return;
-    }
-
-    const validFiles = files.filter(
-      (file) =>
-        ALLOWED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_SIZE
-    );
-
-    if (validFiles.length < files.length) {
-      setError("Some files were skipped due to invalid type or size");
-    }
-
-    // Simulate image upload with progress
-    for (const file of validFiles) {
-      setImageUploadProgress((prev) => ({ ...prev, [file.name]: 0 }));
-
-      // Simulate upload progress
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        setImageUploadProgress((prev) => ({ ...prev, [file.name]: progress }));
-        if (progress >= 100) {
-          clearInterval(interval);
-          setImages((prev) => [
-            ...prev,
-            {
-              id: Date.now(),
-              url: URL.createObjectURL(file),
-              file: file,
-            },
-          ]);
-          setImageUploadProgress((prev) => {
-            const newProgress = { ...prev };
-            delete newProgress[file.name];
-            return newProgress;
-          });
+      // Update the post's likes
+      const updatedPosts = posts.map(post => {
+        if (post.postId === postId) {
+          return { 
+            ...post, 
+            likes: hasLiked ? post.likes - 1 : post.likes + 1 
+          };
         }
-      }, 200);
+        return post;
+      });
+
+      // Update post document
+      await updateDoc(userDoc, {
+        posts: updatedPosts.filter(post => post.userId === userId)
+      });
+
+      // Update user's liked posts
+      if (hasLiked) {
+        await updateDoc(userLikesDoc, {
+          likedPosts: arrayRemove(postId)
+        });
+      } else {
+        await setDoc(userLikesDoc, {
+          likedPosts: arrayUnion(postId)
+        }, { merge: true });
+      }
+    } catch (error) {
+      console.error("Error updating like:", error);
     }
-  };
-
-  // Handle image upload via button
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    handleFiles(files);
-  };
-
-  // Remove image
-  const removeImage = (id) => {
-    setImages((prev) => prev.filter((img) => img.id !== id));
-  };
-
-  // Insert emoji
-  const insertEmoji = (emoji) => {
-    const newContent = content + emoji;
-    if (newContent.length <= MAX_CHAR_COUNT) {
-      setContent(newContent);
-      setCharCount(newContent.length);
-    }
-    setIsEmojiPickerOpen(false);
-  };
-
-  // Handle post submission
-  const handleSubmit = () => {
-    if (!content.trim() && images.length === 0) {
-      setError("Please add some content or images to your post");
-      return;
-    }
-
-    const newPost = {
-      id: posts.length + 1,
-      user: {
-        name: "Current User",
-        username: "@currentuser",
-        avatar: "/api/placeholder/40/40",
-      },
-      content,
-      images: images.map((img) => img.url),
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      timestamp: new Date().toISOString(),
-      liked: false,
-      saved: false,
-    };
-
-    setPosts([newPost, ...posts]);
-    setContent("");
-    setImages([]);
-    setCharCount(0);
-    setError("");
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-full px-3 py-3">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          {/* Main Feed */}
-          <div className="md:col-span-2 space-y-3">
-            {/* Create Post */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
-              <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                    <UserRound className="w-6 h-6 text-gray-500" />
-                  </div>
-                </div>
-                <div className="flex-grow">
-                  <div className="relative">
-                    <textarea
-                      ref={textareaRef}
-                      value={content}
-                      onChange={handleContentChange}
-                      placeholder="What's on your mind?"
-                      className="w-full px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      rows="3"
-                    />
-                    <span className="absolute bottom-2 right-2 text-xs text-gray-400">
-                      {charCount}/{MAX_CHAR_COUNT}
-                    </span>
-                  </div>
-
-                  {/* Drag & Drop Zone */}
-                  <div
-                    ref={dropZoneRef}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={`mt-3 p-3 border-2 border-dashed rounded-lg transition-colors ${
-                      dragOver
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                        : "border-gray-300 dark:border-gray-600"
-                    }`}
-                  >
-                    <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-                      Drag and drop images or{" "}
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="text-blue-500 hover:text-blue-600"
-                      >
-                        browse
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Image Preview */}
-                  {images.length > 0 && (
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      {images.map((img) => (
-                        <div key={img.id} className="relative group">
-                          <img
-                            src={img.url}
-                            alt=""
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
-                          <button
-                            onClick={() => removeImage(img.id)}
-                            className="absolute top-1 right-1 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            ✕
-                          </button>
-                          {imageUploadProgress[img?.file?.name] !==
-                            undefined && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
-                              <div className="text-white">
-                                {imageUploadProgress[img.file.name]}%
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {error && (
-                    <div className="mt-2 text-red-500 text-sm">{error}</div>
-                  )}
-
-                  <div className="mt-3 flex items-center justify-between">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <ImageIcon size={20} />
-                      </button>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleImageUpload}
-                        multiple
-                        accept={ALLOWED_IMAGE_TYPES.join(",")}
-                        className="hidden"
-                      />
-                      <button
-                        onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                        className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <Smile size={20} />
-                      </button>
-                    </div>
-                    <button
-                      onClick={handleSubmit}
-                      disabled={!content.trim() && images.length === 0}
-                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-                    >
-                      Post
-                    </button>
-                  </div>
-
-                  {/* Emoji Picker */}
-                  {isEmojiPickerOpen && (
-                    <div className="absolute mt-2 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-                      <div className="grid grid-cols-8 gap-1">
-                        {["😊", "😂", "🥰", "😎", "🤔", "😅", "😍", "🙌"].map(
-                          (emoji) => (
-                            <button
-                              key={emoji}
-                              onClick={() => insertEmoji(emoji)}
-                              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                            >
-                              {emoji}
-                            </button>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
+    <div className="min-h-screen bg-gray-900 mb-16 md:mb-0">
+      <div className="max-w-7xl mx-auto px-2 py-4">
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Main Content */}
+          <div className="flex-grow lg:w-2/3 space-y-4">
+            {/* Create Post Button */}
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="w-full bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 p-4 flex items-center gap-4 hover:bg-gray-800 transition-all group"
+            >
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-[2px]">
+                <div className="w-full h-full rounded-full bg-gray-800 flex items-center justify-center">
+                  <UserRound className="w-6 h-6 text-gray-300" />
                 </div>
               </div>
-            </div>
+              <div className="flex-grow text-left">
+                <span className="text-gray-400">Share your thoughts...</span>
+              </div>
+              <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-all">
+                <Plus className="w-5 h-5 text-white" />
+              </div>
+            </button>
 
             {/* Posts Feed */}
-            <div className="space-y-8">
+            <div className="space-y-4">
               {posts.map((post) => (
                 <div
-                  key={post.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl"
+                  key={post.postId}
+                  className="bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 overflow-hidden group"
                 >
                   {/* Post Header */}
-                  <div className="p-4 border-b dark:border-gray-700">
+                  <div className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 p-[2px]">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 p-[2px]">
                           <div className="w-full h-full rounded-full overflow-hidden">
                             {post.userProfilePic ? (
                               <img
                                 src={post.userProfilePic}
-                                alt={post.userName}
+                                alt={`${post.userName}'s profile`}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                              <div className="w-full h-full bg-gray-800 flex items-center justify-center text-white font-medium text-lg">
                                 {post.initials}
                               </div>
                             )}
                           </div>
                         </div>
                         <div>
-                          <div className="font-semibold text-gray-900 dark:text-white">
+                          <h3 className="font-semibold text-gray-100">
                             {post.userName}
-                          </div>
-                          <div className="text-sm text-gray-500">
+                          </h3>
+                          <p className="text-sm text-gray-400">
                             {post.timestamp}
-                          </div>
+                          </p>
                         </div>
                       </div>
-                      <button className="text-gray-400 hover:text-gray-500">
-                        <MoreHorizontal size={20} />
+                      <button className="p-2 text-gray-400 hover:text-gray-200 rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-gray-700/50">
+                        <MoreHorizontal className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
 
                   {/* Post Content */}
+                  {post.content && (
+                    <div className="px-4 pb-4">
+                      <p className="text-gray-200 leading-relaxed">
+                        {post.content}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Post Images */}
                   {post.images && post.images.length > 0 && (
-                    <AdvancedImageCarousel images={post.images} />
+                    <div className="relative">
+                      <ImageCarousel images={post.images} />
+                    </div>
                   )}
 
                   {/* Post Actions */}
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex space-x-4">
-                        <button className="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors">
-                          <Heart size={24} />
-                          <span>{post.likes}</span>
+                  <div className="px-6 py-4 border-t border-gray-700/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-6">
+                        <button 
+                          onClick={() => handleLike(post.postId, post.userId)}
+                          disabled={!user}
+                          className={`${
+                            likedPosts.includes(post.postId) 
+                              ? 'text-pink-500' 
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          <Heart className={`w-6 h-6 ${
+                            likedPosts.includes(post.postId) 
+                              ? 'fill-current' 
+                              : ''
+                          }`} />
                         </button>
-                        <button className="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors">
-                          <MessageCircle size={24} />
+                        <button className="flex items-center gap-2 text-gray-400 hover:text-blue-400 transition-colors group">
+                          <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
                           <span>{post.comments}</span>
                         </button>
-                        <button className="flex items-center space-x-1 text-gray-500 hover:text-green-500 transition-colors">
-                          <Share2 size={24} />
+                        <button className="flex items-center gap-2 text-gray-400 hover:text-green-400 transition-colors group">
+                          <Share2 className="w-6 h-6 group-hover:scale-110 transition-transform" />
                           <span>{post.shares}</span>
                         </button>
                       </div>
-                      <button className="text-gray-500 hover:text-yellow-500 transition-colors">
-                        <Bookmark size={24} />
+                      <button className="text-gray-400 hover:text-yellow-400 transition-colors group">
+                        <Bookmark className="w-6 h-6 group-hover:scale-110 transition-transform" />
                       </button>
                     </div>
-
-                    <p className="text-gray-900 dark:text-white">
-                      {post.content}
-                    </p>
-
-                    {post.hashtags?.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {post.hashtags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="text-blue-500 hover:text-blue-600 text-sm cursor-pointer"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
@@ -512,12 +227,28 @@ const HomeSection = () => {
           </div>
 
           {/* Sidebar */}
-          <div className="hidden lg:block space-y-6">
-            <Trending />
-            <SuggestedFollower />
+          <div className="hidden lg:block w-96 space-y-8 sticky top-6">
+            <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 p-6">
+              <h2 className="text-xl font-semibold text-gray-100 mb-6">
+                Trending
+              </h2>
+              <Trending />
+            </div>
+            <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 p-6">
+              <h2 className="text-xl font-semibold text-gray-100 mb-6">
+                Suggested Followers
+              </h2>
+              <SuggestedFollower />
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Create Post Modal */}
+      <CreatePostModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 };
