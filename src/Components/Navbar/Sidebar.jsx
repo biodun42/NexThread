@@ -14,7 +14,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
-import Logo from "../../assets/Logo.svg";
+import Logo from "../../assets/logo.svg";
 import { auth } from "../Firebase/Firebase";
 import { toast } from "react-toastify";
 import { useStateContext } from "../Context/Statecontext";
