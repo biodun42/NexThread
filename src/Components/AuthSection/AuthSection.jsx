@@ -135,6 +135,12 @@ const AuthSection = () => {
           ProfilePicture: formData.previewUrl,
           Initials: initials,
           CreatedAt: new Date(),
+          followers: "",
+          following:"",
+          bio: "",
+          location: "",
+          individualposts: [],
+          messages: [],
         });
 
         toast.success("Welcome to NexThread! 🎉");
@@ -340,7 +346,7 @@ const AuthSection = () => {
   return (
     <div className="min-h-screen bg-[#0F172A] flex items-center justify-center p-4">
       <motion.div
-        className="relative bg-gray-800/50 backdrop-blur-xl rounded-3xl p-8 w-full max-w-md border border-gray-700/50"
+        className="relative bg-gray-800/50 backdrop-blur-xl rounded-3xl p-4 w-full max-w-md border border-gray-700/50"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}

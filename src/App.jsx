@@ -4,6 +4,8 @@ import "react-toastify/dist/ReactToastify.css";
 import Home from "./Pages/Home";
 import PageNotFound from "./Pages/PageNotFound";
 import Auth from "./Pages/Auth";
+import Message from "./Pages/Message";
+import Profile from "./Pages/Profile";
 
 function App() {
   return (
@@ -11,6 +13,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Auth />} />
         <Route path="/home" element={<Home />} />
+        <Route path="/profile/:userId" element={<Profile />} />
+        <Route path="/Message" element={<Message />} />
         <Route path="*" element={<Navigate to="/404" replace />} />
         <Route path="/404" element={<PageNotFound />} />
       </Routes>

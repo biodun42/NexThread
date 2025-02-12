@@ -340,8 +340,8 @@ const CreatePostModal = ({ isOpen, onClose }) => {
         userProfilePic: userDoc.data().ProfilePicture || "",
         initials: userDoc.data().Initials || "",
         Name: userDoc.data().Name || "",
-        likes: 0,
-        comments: 0,
+        likes: [],
+        comments: [],
         shares: 0,
       };
 
@@ -420,7 +420,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
         <div className="w-full max-w-2xl bg-gradient-to-b from-gray-900 to-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-700/50">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-700/50 bg-gray-900/50">
+          <div className="flex items-center justify-between p-2 border-b border-gray-700/50 bg-gray-900/50">
             <h2 className="text-2xl font-bold text-white">Create Post</h2>
             <button
               onClick={onClose}
@@ -432,7 +432,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
           </div>
 
           {/* Content Area */}
-          <div className="p-6 space-y-6">
+          <div className="p-2 space-y-2">
             {/* Text Input */}
             <div className="relative">
               <textarea
