@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Send, Paperclip, Image, Smile, MoreVertical, ArrowLeft, Search,
-  UserPlus, User, X, Clock, Check, CheckCheck, Archive, Plus,
-  BookmarkPlus, Forward, Reply, Trash2, Sticker
+  Send, Image, Smile, User, X, Clock, Archive, Plus,
 } from "lucide-react";
-import { initializeApp } from "firebase/app";
 import {
-  getFirestore,
   collection,
   query,
   where,
@@ -15,60 +11,67 @@ import {
   addDoc,
   serverTimestamp,
   onSnapshot,
-  orderBy
+  orderBy,
 } from "firebase/firestore";
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL
-} from "firebase/storage";
-import { db } from "../Firebase/Firebase";
+import { db, messagesCollection } from "../Firebase/Firebase";
+import { useStateContext } from "../Context/Statecontext";
 
+const CLOUDINARY_CONFIG = {
+  UPLOAD_PRESET: "Posts_For_NexThread",
+  CLOUD_NAME: "df4f0usnh",
+  UPLOAD_URL: `https://api.cloudinary.com/v1_1/df4f0usnh/image/upload`,
+};
 
 const MessageSection = () => {
   const [contacts, setContacts] = useState([]);
+  const [filteredContacts, setFilteredContacts] = useState([]);
   const [selectedContact, setSelectedContact] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [showMobileMenu, setShowMobileMenu] = useState(true);
-  const [selectedMessage, setSelectedMessage] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useStateContext();
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Sticker pack (you can expand this)
-  const stickerPack = [
-    { id: 1, url: "/stickers/happy.svg" },
-    { id: 2, url: "/stickers/sad.svg" },
-    { id: 3, url: "/stickers/love.svg" },
-    // Add more stickers
-  ];
-
+  // Fetch all users initially and set up real-time updates
   useEffect(() => {
-    // Listen to contacts from Firebase
-    const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
-      const contactsList = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+    const unsubscribe = onSnapshot(collection(db, "Users"), (snapshot) => {
+      const contactsList = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter((contact) => contact.id !== user); // Exclude current user
+
       setContacts(contactsList);
+      setFilteredContacts(contactsList);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
+  // Real-time search filtering
+  useEffect(() => {
+    const filtered = contacts.filter((contact) =>
+      contact.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredContacts(filtered);
+  }, [searchTerm, contacts]);
+
+  // Fetch messages for selected contact
   useEffect(() => {
     if (selectedContact) {
-      // Listen to messages for selected contact
       const messagesRef = collection(db, "messages");
       const q = query(
         messagesRef,
-        where("participants", "array-contains", [selectedContact.id]),
+        where(
+          "participants",
+          "array-contains",
+          [user, selectedContact.id].sort()
+        ),
         orderBy("timestamp", "asc")
       );
 
@@ -83,34 +86,10 @@ const MessageSection = () => {
 
       return () => unsubscribe();
     }
-  }, [selectedContact]);
+  }, [selectedContact, user]);
 
-  const searchUsers = async (term) => {
-    if (!term.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsLoading(true);
-    const usersRef = collection(db, "users");
-    const q = query(
-      usersRef,
-      where("name", ">=", term),
-      where("name", "<=", term + "\uf8ff")
-    );
-
-    try {
-      const snapshot = await getDocs(q);
-      const results = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setSearchResults(results);
-    } catch (error) {
-      console.error("Error searching users:", error);
-    } finally {
-      setIsLoading(false);
-    }
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleFileUpload = async (event) => {
@@ -118,13 +97,19 @@ const MessageSection = () => {
     if (!file) return;
 
     try {
-      const storageRef = ref(storage, `images/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", CLOUDINARY_CONFIG.UPLOAD_PRESET);
 
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
       await sendMessage({
         type: "image",
-        content: downloadURL,
+        content: data.secure_url,
       });
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -142,10 +127,11 @@ const MessageSection = () => {
     if (!messageContent.content) return;
 
     try {
-      await addDoc(collection(db, "messages"), {
-        sender: "currentUserId", // Replace with actual user ID
+      const participants = [user, selectedContact.id].sort();
+      await addDoc(collection(db, messagesCollection), {
+        sender: user,
         receiver: selectedContact.id,
-        participants: ["currentUserId", selectedContact.id],
+        participants,
         ...messageContent,
         timestamp: serverTimestamp(),
         status: "sent",
@@ -157,34 +143,37 @@ const MessageSection = () => {
     }
   };
 
-  const MessageContent = ({ message }) => {
-    switch (message.type) {
-      case "image":
-        return (
-          <motion.img
-            src={message.content}
-            alt="Shared image"
-            className="max-w-full rounded-lg max-h-64 object-cover"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-          />
-        );
-      case "sticker":
-        return (
-          <motion.img
-            src={message.content}
-            alt="Sticker"
-            className="w-24 h-24"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-          />
-        );
-      default:
-        return <p>{message.content}</p>;
-    }
-  };
+  const ContactList = ({ contacts, onSelect }) => (
+    <div className="flex-1 overflow-y-auto">
+      <AnimatePresence>
+        {contacts.map((contact) => (
+          <motion.div
+            key={contact.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`p-4 flex items-center space-x-3 cursor-pointer transition-colors ${
+              selectedContact?.id === contact.id
+                ? "bg-violet-500/20"
+                : "hover:bg-gray-700/50"
+            }`}
+            onClick={() => onSelect(contact)}
+          >
+            <img
+              src={contact.avatar || "/api/placeholder/50/50"}
+              alt={contact.name}
+              className="w-12 h-12 rounded-full"
+            />
+            <div className="flex-1">
+              <h4 className="font-medium">{contact.name}</h4>
+              <p className="text-sm text-white/50">{contact.status}</p>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
 
-  // New Chat Modal
   const NewChatModal = () => (
     <motion.div
       initial={{ opacity: 0 }}
@@ -212,51 +201,20 @@ const MessageSection = () => {
             type="text"
             placeholder="Search users..."
             value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              searchUsers(e.target.value);
-            }}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-gray-700/50 rounded-xl p-3 pl-10 text-white focus:outline-none"
           />
-          <Search className="absolute left-3 top-3 text-white/40" size={20} />
+          <User className="absolute left-3 top-3 text-white/40" size={20} />
         </div>
 
-        <div className="max-h-96 overflow-y-auto">
-          {isLoading ? (
-            <div className="text-center py-4">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              >
-                <Clock size={24} className="mx-auto text-violet-500" />
-              </motion.div>
-            </div>
-          ) : (
-            searchResults.map((user) => (
-              <motion.div
-                key={user.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-3 flex items-center space-x-3 hover:bg-gray-700/50 rounded-lg cursor-pointer"
-                onClick={() => {
-                  setSelectedContact(user);
-                  setShowNewChatModal(false);
-                  setShowMobileMenu(false);
-                }}
-              >
-                <img
-                  src={user.avatar || "/api/placeholder/50/50"}
-                  alt={user.name}
-                  className="w-12 h-12 rounded-full"
-                />
-                <div>
-                  <h4 className="font-medium">{user.name}</h4>
-                  <p className="text-sm text-white/50">{user.status}</p>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </div>
+        <ContactList
+          contacts={filteredContacts}
+          onSelect={(contact) => {
+            setSelectedContact(contact);
+            setShowNewChatModal(false);
+            setShowMobileMenu(false);
+          }}
+        />
       </motion.div>
     </motion.div>
   );
@@ -276,7 +234,6 @@ const MessageSection = () => {
             exit={{ x: -100, opacity: 0 }}
             className="absolute md:relative w-full md:w-[380px] bg-gray-800 border-r border-white/10 flex flex-col z-10"
           >
-            {/* Header with New Chat Button */}
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <motion.h2
                 whileHover={{ scale: 1.05 }}
@@ -311,8 +268,29 @@ const MessageSection = () => {
               </div>
             </div>
 
-            {/* Existing Contact List */}
-            {/* ... (keep existing contact list code) ... */}
+            <div className="p-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search conversations..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-gray-700/50 rounded-xl p-3 pl-10 text-white focus:outline-none"
+                />
+                <User
+                  className="absolute left-3 top-3 text-white/40"
+                  size={20}
+                />
+              </div>
+            </div>
+
+            <ContactList
+              contacts={filteredContacts}
+              onSelect={(contact) => {
+                setSelectedContact(contact);
+                setShowMobileMenu(false);
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -325,52 +303,66 @@ const MessageSection = () => {
       >
         {selectedContact ? (
           <>
-            {/* Chat Header */}
-            {/* ... (keep existing chat header code) ... */}
+            <div className="p-4 bg-gray-800 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <button
+                  className="md:hidden text-white/60 hover:text-white"
+                  onClick={() => setShowMobileMenu(true)}
+                >
+                  <Archive size={20} />
+                </button>
+                <img
+                  src={selectedContact.avatar || "/api/placeholder/50/50"}
+                  alt={selectedContact.name}
+                  className="w-10 h-10 rounded-full"
+                />
+                <div>
+                  <h3 className="font-medium">{selectedContact.name}</h3>
+                  <p className="text-sm text-white/50">
+                    {selectedContact.status || "Online"}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-            {/* Messages Area */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex-1 overflow-y-auto p-4 space-y-4"
-            >
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <AnimatePresence>
                 {messages.map((message) => (
                   <motion.div
                     key={message.id}
                     initial={{
                       opacity: 0,
-                      x: message.sender === "currentUserId" ? 20 : -20,
+                      x: message.sender === user ? 20 : -20,
                     }}
                     animate={{ opacity: 1, x: 0 }}
                     className={`flex ${
-                      message.sender === "currentUserId"
-                        ? "justify-end"
-                        : "justify-start"
+                      message.sender === user ? "justify-end" : "justify-start"
                     }`}
                   >
                     <div
                       className={`max-w-[70%] p-3 rounded-2xl backdrop-blur-sm ${
-                        message.sender === "currentUserId"
+                        message.sender === user
                           ? "bg-violet-500/90 text-white"
                           : "bg-gray-700/90 text-white"
                       }`}
                     >
-                      <MessageContent message={message} />
-                      {/* ... (keep existing message metadata code) ... */}
+                      {message.type === "image" ? (
+                        <img
+                          src={message.content}
+                          alt="Shared image"
+                          className="max-w-full rounded-lg max-h-64 object-cover"
+                        />
+                      ) : (
+                        <p>{message.content}</p>
+                      )}
                     </div>
                   </motion.div>
                 ))}
-                <div ref={messagesEndRef} />
               </AnimatePresence>
-            </motion.div>
+              <div ref={messagesEndRef} />
+            </div>
 
-            {/* Message Input */}
-            <motion.div
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="p-4 bg-gray-800 border-t border-white/10"
-            >
+            <div className="p-4 bg-gray-800 border-t border-white/10">
               <div className="flex items-center space-x-2">
                 <input
                   type="file"
@@ -402,55 +394,19 @@ const MessageSection = () => {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-                    className="w-full bg-gray-700/50 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 placeholder:text-white/30 backdrop-blur-sm"
+                    className="w-full bg-gray-700/50 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 placeholder:text-white/30"
                   />
                 </div>
                 <motion.button
                   onClick={() => sendMessage()}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  className="bg-violet-500 text-white p-3 rounded-full hover:bg-violet-600 transition-colors shadow-lg shadow-violet-500/20"
+                  className="bg-violet-500 text-white p-3 rounded-full hover:bg-violet-600"
                 >
                   <Send size={20} />
                 </motion.button>
               </div>
-
-              {/* Emoji & Sticker Picker */}
-              <AnimatePresence>
-                {showEmojiPicker && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    className="absolute bottom-20 right-4 bg-gray-800 rounded-xl p-4 shadow-lg border border-white/10 w-72"
-                  >
-                    <div className="grid grid-cols-4 gap-2">
-                      {stickerPack.map((sticker) => (
-                        <motion.button
-                          key={sticker.id}
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          className="p-2 hover:bg-gray-700 rounded-lg"
-                          onClick={() => {
-                            sendMessage({
-                              type: "sticker",
-                              content: sticker.url,
-                            });
-                            setShowEmojiPicker(false);
-                          }}
-                        >
-                          <img
-                            src={sticker.url}
-                            alt="sticker"
-                            className="w-12 h-12"
-                          />
-                        </motion.button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
+            </div>
           </>
         ) : (
           <motion.div
@@ -495,6 +451,35 @@ const MessageSection = () => {
           </motion.div>
         )}
       </motion.div>
+
+      {/* Emoji Picker */}
+      <AnimatePresence>
+        {showEmojiPicker && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="absolute bottom-20 right-4 bg-gray-800 rounded-xl p-4 shadow-lg border border-white/10 w-72"
+          >
+            <div className="grid grid-cols-4 gap-2">
+              {["😊", "😂", "❤️", "👍", "😍", "🎉", "🔥", "👋"].map((emoji) => (
+                <motion.button
+                  key={emoji}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="p-2 hover:bg-gray-700 rounded-lg text-2xl"
+                  onClick={() => {
+                    setNewMessage((prev) => prev + emoji);
+                    setShowEmojiPicker(false);
+                  }}
+                >
+                  {emoji}
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* New Chat Modal */}
       <AnimatePresence>{showNewChatModal && <NewChatModal />}</AnimatePresence>

@@ -4,14 +4,15 @@ import { MessageCircle, Users } from "lucide-react";
 import { useParams } from "react-router-dom";
 import {
   doc,
-  getDoc,
   onSnapshot,
   updateDoc,
   arrayUnion,
   arrayRemove,
+  collection,
+  query,
+  where,
 } from "firebase/firestore";
-import { db } from "../Firebase/Firebase";
-import { usersCollection, postsCollection } from "../Firebase/Firebase";
+import { db, usersCollection } from "../Firebase/Firebase";
 
 const ProfileSection = () => {
   const [profile, setProfile] = useState(null);
@@ -20,7 +21,7 @@ const ProfileSection = () => {
   const [isFollowing, setIsFollowing] = useState(false);
 
   const { userId } = useParams();
-  const currentUserId = "loggedInUserId"; // Replace with the actual logged-in user's ID.
+  const currentUserId = "loggedInUserId"; // Replace with actual logged-in user ID
 
   useEffect(() => {
     const unsubscribeUser = onSnapshot(
@@ -28,17 +29,15 @@ const ProfileSection = () => {
       (docSnap) => {
         if (docSnap.exists()) {
           setProfile(docSnap.data());
-          console.log(docSnap.data());
         }
       }
     );
 
-    const unsubscribePosts = onSnapshot(
-      db.collection("posts").where("userId", "==", userId),
-      (snapshot) => {
-        setPosts(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      }
-    );
+    const postsRef = collection(db, "posts");
+    const q = query(postsRef, where("userId", "==", userId));
+    const unsubscribePosts = onSnapshot(q, (snapshot) => {
+      setPosts(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    });
 
     return () => {
       unsubscribeUser();
@@ -50,7 +49,7 @@ const ProfileSection = () => {
     if (profile && profile.followers?.includes(currentUserId)) {
       setIsFollowing(true);
     }
-  }, [profile]);
+  }, [profile, currentUserId]);
 
   const handleFollow = async () => {
     if (!profile) return;

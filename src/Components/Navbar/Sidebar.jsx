@@ -61,7 +61,6 @@ const Sidebar = () => {
   ];
 
   const secondaryItems = [
-    { icon: PlusCircle, label: "Create", path: "/create" },
     { icon: Settings, label: "Settings", path: "/settings" },
   ];
 
