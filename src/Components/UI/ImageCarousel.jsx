@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const ImageCarousel = ({ images }) => {
+const ImageCarousel = ({ images, fh, sh }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -58,7 +58,8 @@ const ImageCarousel = ({ images }) => {
       {/* Main Carousel Container */}
       <div
         ref={containerRef}
-        className="relative w-full h-[50vh] md:h-[60vh] overflow-hidden"
+        className={`relative w-full ${fh} ${sh}
+        overflow-hidden`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
       >
@@ -104,7 +105,7 @@ const ImageCarousel = ({ images }) => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => goToSlide(currentIndex - 1)}
-            className={`absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/20 backdrop-blur-sm rounded-full transition-all hover:bg-black/40 ${
+            className={`absolute left-4 top-1/2 -translate-y-1/2 p-1 bg-black/20 backdrop-blur-sm rounded-full transition-all hover:bg-black/40 ${
               currentIndex === 0
                 ? "opacity-0 pointer-events-none"
                 : "opacity-100"
@@ -116,7 +117,7 @@ const ImageCarousel = ({ images }) => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => goToSlide(currentIndex + 1)}
-            className={`absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/20 backdrop-blur-sm rounded-full transition-all hover:bg-black/40 ${
+            className={`absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-black/20 backdrop-blur-sm rounded-full transition-all hover:bg-black/40 ${
               currentIndex === images.length - 1
                 ? "opacity-0 pointer-events-none"
                 : "opacity-100"
@@ -130,7 +131,7 @@ const ImageCarousel = ({ images }) => {
       {/* Thumbnail Navigation - Adjusted for better mobile visibility */}
       {images.length > 1 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
-          <div className="flex gap-3 bg-black/30 backdrop-blur-sm p-3 rounded-full">
+          <div className="flex gap-3 bg-black/30 backdrop-blur-sm p-2 rounded-full">
             {images.map((_, index) => (
               <motion.button
                 key={index}

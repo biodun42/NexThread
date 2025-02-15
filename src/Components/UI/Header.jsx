@@ -78,16 +78,10 @@ const Header = () => {
 
         if (!usersFriendSnap.exists()) {
           await setDoc(usersFriendRef, { friends: [] });
-          console.log("Friends array created");
-        } else {
-          console.log("Friends array exists");
         }
 
         if (!usersMessagesSnap.exists()) {
           await setDoc(usersMessagesRef, { messages: [] });
-          console.log("Messages array created");
-        } else {
-          console.log("Messages array exists");
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -152,7 +146,7 @@ const Header = () => {
         {/* Mobile Menu Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* User Profile Section */}
-          <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg">
+          <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg cursor-pointer" onClick={() => navigate(`/profile/${user}`)}>
             <UserProfile profilePic={userAvatar} initials={initials} />
             <div>
               <h3 className="text-white font-medium">{name}</h3>
@@ -392,7 +386,7 @@ const Header = () => {
                       >
                         <button
                           onClick={() => {
-                            navigate(`/profile/${user?.uid}`);
+                            navigate(`/profile/${user}`);
                             setShowProfileMenu(false);
                           }}
                           className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-white/5"

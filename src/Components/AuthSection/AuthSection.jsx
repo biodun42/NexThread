@@ -135,12 +135,10 @@ const AuthSection = () => {
           ProfilePicture: formData.previewUrl,
           Initials: initials,
           CreatedAt: new Date(),
-          followers: "",
-          following:"",
+          followers: [],
+          following:[],
           bio: "",
           location: "",
-          individualposts: [],
-          messages: [],
         });
 
         toast.success("Welcome to NexThread! 🎉");
