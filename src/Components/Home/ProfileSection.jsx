@@ -491,9 +491,9 @@ const ProfileSection = () => {
           ) : (
             <>
               <h1 className="text-3xl font-bold mt-4">
-                {profile?.Name || "User"}
+                {profile?.Name}
               </h1>
-              <p className="text-gray-400">@{profile?.Username || "unknown"}</p>
+              <p className="text-gray-400">@{profile?.Username}</p>
               {profile?.bio && (
                 <p className="mt-2 text-center max-w-md text-gray-300">
                   {profile.bio}

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
+import PostOptionModal from "../Modal/PostOptionModal";
 
 const ImageCarousel = ({
   images,
@@ -20,13 +21,18 @@ const ImageCarousel = ({
   onComment,
   onLike,
   onShare,
+  onReport,
+  onDelete,
+  onBlock,
+  onCopyLink,
+  onAddToFavorites,
+  isAuthor,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [showOptions, setShowOptions] = useState(false);
   const [doubleTapLike, setDoubleTapLike] = useState(false);
   const containerRef = useRef(null);
   const timeoutRef = useRef(null);
@@ -85,9 +91,9 @@ const ImageCarousel = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden max-w-xl mx-auto">
+    <div className="bg-white bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg shadow-lg overflow-hidden max-w-xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b dark:border-gray-800">
+      <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900">
         <div className="flex items-center space-x-3">
           <div className="relative">
             <motion.div
@@ -128,14 +134,14 @@ const ImageCarousel = ({
             </div>
           </div>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowOptions(!showOptions)}
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          <MoreHorizontal className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-        </motion.button>
+        <PostOptionModal
+          onReport={onReport}
+          onDelete={onDelete}
+          onBlock={onBlock}
+          onCopyLink={onCopyLink}
+          onAddToFavorites={onAddToFavorites}
+          isAuthor={isAuthor}
+        />
       </div>
 
       {/* Image Carousel */}
