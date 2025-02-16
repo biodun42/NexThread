@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Send, Image, Smile, User, X, Clock, Archive, Plus,
-} from "lucide-react";
+import { Send, Image, Smile, User, X, Archive, Plus } from "lucide-react";
 import {
   collection,
   query,
@@ -15,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db, messagesCollection } from "../Firebase/Firebase";
 import { useStateContext } from "../Context/Statecontext";
+import { useParams, useNavigate } from "react-router-dom";
 
 const CLOUDINARY_CONFIG = {
   UPLOAD_PRESET: "Posts_For_NexThread",
@@ -35,6 +34,8 @@ const MessageSection = () => {
   const { user } = useStateContext();
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const { contactId } = useParams();
+  const navigate = useNavigate();
 
   // Fetch all users initially and set up real-time updates
   useEffect(() => {
@@ -55,23 +56,24 @@ const MessageSection = () => {
 
   // Real-time search filtering
   useEffect(() => {
-    const filtered = contacts.filter((contact) =>
-      contact.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = contacts.filter(
+      (contact) =>
+        contact.Name &&
+        contact.Name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredContacts(filtered);
   }, [searchTerm, contacts]);
 
   // Fetch messages for selected contact
   useEffect(() => {
-    if (selectedContact) {
+    if (contactId) {
+      const selected = contacts.find((contact) => contact.id === contactId);
+      setSelectedContact(selected);
+
       const messagesRef = collection(db, "messages");
       const q = query(
         messagesRef,
-        where(
-          "participants",
-          "array-contains",
-          [user, selectedContact.id].sort()
-        ),
+        where("participants", "array-contains", user),
         orderBy("timestamp", "asc")
       );
 
@@ -86,7 +88,7 @@ const MessageSection = () => {
 
       return () => unsubscribe();
     }
-  }, [selectedContact, user]);
+  }, [contactId, user, contacts]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -157,15 +159,24 @@ const MessageSection = () => {
                 ? "bg-violet-500/20"
                 : "hover:bg-gray-700/50"
             }`}
-            onClick={() => onSelect(contact)}
+            onClick={() => {
+              onSelect(contact);
+              navigate(`/messages/${contact.id}`);
+            }}
           >
-            <img
-              src={contact.avatar || "/api/placeholder/50/50"}
-              alt={contact.name}
-              className="w-12 h-12 rounded-full"
-            />
+            {contact.ProfilePicture ? (
+              <img
+                src={contact.ProfilePicture}
+                alt={contact.Name}
+                className="w-12 h-12 object-cover rounded-full"
+              />
+            ) : (
+              <div className="w-12 h-12 bg-gray-600 flex items-center justify-center rounded-full shadow-2xl">
+                <h1 className="text-white text-2xl">{contact.Initials}</h1>{" "}
+              </div>
+            )}
             <div className="flex-1">
-              <h4 className="font-medium">{contact.name}</h4>
+              <h4 className="font-medium">{contact.Name}</h4>
               <p className="text-sm text-white/50">{contact.status}</p>
             </div>
           </motion.div>
@@ -213,6 +224,7 @@ const MessageSection = () => {
             setSelectedContact(contact);
             setShowNewChatModal(false);
             setShowMobileMenu(false);
+            history.push(`/messages/${contact.id}`);
           }}
         />
       </motion.div>
@@ -289,6 +301,7 @@ const MessageSection = () => {
               onSelect={(contact) => {
                 setSelectedContact(contact);
                 setShowMobileMenu(false);
+                history.push(`/messages/${contact.id}`);
               }}
             />
           </motion.div>
@@ -311,13 +324,21 @@ const MessageSection = () => {
                 >
                   <Archive size={20} />
                 </button>
-                <img
-                  src={selectedContact.avatar || "/api/placeholder/50/50"}
-                  alt={selectedContact.name}
-                  className="w-10 h-10 rounded-full"
-                />
+                {selectedContact.ProfilePicture ? (
+                  <img
+                    src={selectedContact.ProfilePicture}
+                    alt={selectedContact.Name}
+                    className="w-12 h-12 object-cover rounded-full"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-gray-600 flex items-center justify-center rounded-full shadow-2xl">
+                    <h1 className="text-white text-2xl">
+                      {selectedContact.Initials}
+                    </h1>
+                  </div>
+                )}
                 <div>
-                  <h3 className="font-medium">{selectedContact.name}</h3>
+                  <h3 className="font-medium">{selectedContact.Name}</h3>
                   <p className="text-sm text-white/50">
                     {selectedContact.status || "Online"}
                   </p>

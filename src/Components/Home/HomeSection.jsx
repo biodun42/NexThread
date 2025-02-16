@@ -23,7 +23,6 @@ import {
   orderBy,
 } from "firebase/firestore";
 import CreatePostModal from "../Modal/CreatePostModal";
-import { useNavigate } from "react-router-dom";
 import Comments from "../UI/comment";
 import LoadingHome from "../LoadingState/LoadingHome";
 
@@ -32,14 +31,28 @@ const HomeSection = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [likeCount, setLikeCount] = useState({});
   const [activeComments, setActiveComments] = useState(null);
+  const [comments, setComments] = useState({});
   const [commentLength, setCommentLength] = useState({});
   const [loading, setLoading] = useState(true);
   const { user } = useStateContext();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = onSnapshot(postsCollection, (snapshot) => {
-      const postsList = snapshot.docs.map((doc) => doc.data().posts).flat();
+      let postsList = snapshot.docs.map((doc) => doc.data().posts).flat();
+
+      // Filter out old posts (e.g., older than 7 days)
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      postsList = postsList.filter(
+        (post) => new Date(post.timestamp) > oneWeekAgo
+      );
+
+      // Shuffle the postsList
+      for (let i = postsList.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [postsList[i], postsList[j]] = [postsList[j], postsList[i]];
+      }
+
       setPosts(postsList);
       setLoading(false);
     });
@@ -71,6 +84,11 @@ const HomeSection = () => {
           id: doc.id,
           ...doc.data(),
         }));
+        setComments((prev) => ({
+          ...prev,
+          [post.postId]: commentsData,
+        }));
+        console.log(commentsData);
         setCommentLength((prev) => ({
           ...prev,
           [post.postId]: commentsData.length,
@@ -140,89 +158,21 @@ const HomeSection = () => {
   );
 
   const PostCard = ({ post }) => (
-    <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 overflow-hidden group">
-      <div className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div
-              className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 p-[2px] cursor-pointer"
-              onClick={() => navigate(`/profile/${post.userId}`)}
-            >
-              <div className="w-full h-full rounded-full overflow-hidden">
-                {post.userProfilePic ? (
-                  <img
-                    src={post.userProfilePic}
-                    alt={`${post.userName}'s profile`}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-800 flex items-center justify-center text-white font-medium text-lg">
-                    {post.initials}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div onClick={() => navigate(`/profile/${post.userId}`)}>
-              <h3 className="font-semibold text-gray-100 cursor-pointer">
-                {post.userName}
-              </h3>
-              <p className="text-sm text-gray-400">{post.timestamp}</p>
-            </div>
-          </div>
-          <button className="p-2 text-gray-400 hover:text-gray-200 rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-gray-700/50">
-            <MoreHorizontal className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {post.content && (
-        <div className="px-4 pb-4">
-          <p className="text-gray-200 leading-relaxed">{post.content}</p>
-        </div>
-      )}
-
+    <>
       {post.images && post.images.length > 0 && (
-        <div className="relative">
-          <ImageCarousel images={post.images} fh="h-[50vh]" sh="md:h-[60vh]" />
-        </div>
+        <ImageCarousel
+          post={post}
+          images={post.images}
+          postId={post.postId}
+          onLike={() => handleLike(post.postId)}
+          onComment={() => setActiveComments(post.postId)}
+          onShare={() => handleShare(post.postId)}
+          likes={likeCount[post.postId] || post.likes.length}
+          comments={comments[post.postId] || []}
+          shares={post.shares}
+        />
       )}
-
-      <div className="px-6 py-4 border-t border-gray-700/50">
-        <div className="flex items-center justify-between">
-          <div className="flex gap-6">
-            <button
-              className={`flex items-center gap-2 transition-colors group ${
-                post.likes.includes(user)
-                  ? "text-red-400"
-                  : "text-gray-400 hover:text-red-400"
-              }`}
-              onClick={() => handleLike(post.postId)}
-            >
-              {post.likes.includes(user) ? (
-                <Heart className="w-6 h-6" fill="currentColor" />
-              ) : (
-                <Heart className="w-6 h-6" />
-              )}
-              <span>{likeCount[post.postId] || post.likes.length}</span>
-            </button>
-            <button
-              className="flex items-center gap-2 text-gray-400 hover:text-blue-400 transition-colors group"
-              onClick={() => setActiveComments(post.postId)}
-            >
-              <MessageCircle className="w-6 h-6" />
-              <span>{commentLength[post.postId] || 0}</span>
-            </button>
-            <button className="flex items-center gap-2 text-gray-400 hover:text-green-400 transition-colors group">
-              <Share2 className="w-6 h-6" />
-              <span>{post.shares}</span>
-            </button>
-          </div>
-          <button className="text-gray-400 hover:text-yellow-400 transition-colors">
-            <Bookmark className="w-6 h-6" />
-          </button>
-        </div>
-      </div>
-    </div>
+    </>
   );
 
   if (loading) return <LoadingHome />;
@@ -231,7 +181,7 @@ const HomeSection = () => {
     <div className="min-h-screen bg-gray-900 mb-16 lg:md-0">
       <div className="max-w-7xl mx-auto px-2 py-4">
         <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-grow lg:w-2/3 space-y-4">
+          <div className="flex-grow space-y-4">
             <CreatePostButton />
             <div className="space-y-4">
               {posts.map((post) => (
@@ -241,13 +191,13 @@ const HomeSection = () => {
           </div>
 
           <div className="hidden lg:block w-96 space-y-8 sticky top-6">
-            <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 p-6">
+            <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 p-4">
               <h2 className="text-xl font-semibold text-gray-100 mb-6">
                 Trending
               </h2>
               <Trending />
             </div>
-            <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 p-6">
+            <div className="bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 p-4">
               <h2 className="text-xl font-semibold text-gray-100 mb-6">
                 Suggested Followers
               </h2>

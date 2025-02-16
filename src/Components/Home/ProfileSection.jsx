@@ -7,21 +7,12 @@ import {
   Camera,
   Share2,
   Bookmark,
-  Grid,
-  List,
-  Map,
-  Calendar,
-  Settings,
-  Bell,
-  Menu,
-  X,
-  ChevronDown,
-  Image as ImageIcon,
-  Upload,
   Globe,
   BookCopy,
-  MoreHorizontal,
   Heart,
+  X,
+  Bell,
+  Settings,
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -31,23 +22,22 @@ import {
   arrayUnion,
   arrayRemove,
   collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
   getDoc,
+  query,
+  orderBy,
 } from "firebase/firestore";
 import { db, postsCollection, usersCollection } from "../Firebase/Firebase";
 import LoadingProfile from "../LoadingState/LoadingProfile";
 import { useStateContext } from "../Context/Statecontext";
 import ImageCarousel from "../UI/ImageCarousel";
 import Comments from "../UI/comment";
+import { toast } from "react-toastify";
 
 const renderContent = (viewMode, posts, renderPost, profile) => {
   switch (viewMode) {
     case "posts":
       return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {posts.map((post) => (
             <motion.div
               key={post.postId}
@@ -72,7 +62,6 @@ const renderContent = (viewMode, posts, renderPost, profile) => {
 };
 
 const ProfileSection = () => {
-  // Enhanced state management
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -80,7 +69,6 @@ const ProfileSection = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [viewMode, setViewMode] = useState("posts");
-  const [isUploading, setIsUploading] = useState(false);
   const [editedProfile, setEditedProfile] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,10 +76,12 @@ const ProfileSection = () => {
   const { user } = useStateContext();
   const [commentLength, setCommentLength] = useState({});
   const [likeCount, setLikeCount] = useState({});
+  const [comments, setComments] = useState({});
+  const navigate = useNavigate();
+
 
   const fileInputRef = useRef(null);
   const { userId } = useParams();
-  const navigate = useNavigate();
 
   const tabs = [
     { id: "posts", icon: BookCopy, label: "Posts" },
@@ -99,10 +89,15 @@ const ProfileSection = () => {
   ];
 
   const settingsOptions = [
-    { id: "edit-profile", label: "Edit Profile", icon: Edit },
-    { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "privacy", label: "Privacy Settings", icon: Globe },
-    { id: "bookmarks", label: "Saved Posts", icon: Bookmark },
+    {
+      id: "edit-profile",
+      label: "Edit Profile",
+      icon: Edit,
+      onclick: () => {
+        setIsEditMode(true);
+        setShowSettings(false);
+      },
+    },
   ];
 
   useEffect(() => {
@@ -116,6 +111,7 @@ const ProfileSection = () => {
               const profileData = docSnap.data();
               setProfile(profileData);
               setEditedProfile(profileData);
+              setIsFollowing(profileData.followers?.includes(user));
             }
           }
         );
@@ -138,7 +134,7 @@ const ProfileSection = () => {
     };
 
     loadProfile();
-  }, [userId]);
+  }, [userId, user]);
 
   useEffect(() => {
     const postsRef = collection(db, "Posts");
@@ -164,6 +160,11 @@ const ProfileSection = () => {
           id: doc.id,
           ...doc.data(),
         }));
+        setComments((prev) => ({
+          ...prev,
+          [post.postId]: commentsData,
+        }));
+        console.log(commentsData);
         setCommentLength((prev) => ({
           ...prev,
           [post.postId]: commentsData.length,
@@ -213,22 +214,40 @@ const ProfileSection = () => {
     }
   };
 
-  const handleImageUpload = async (event) => {
+  // Cloudinary Config
+  const CLOUDINARY_CONFIG = {
+    UPLOAD_PRESET: "Posts_For_NexThread",
+    CLOUD_NAME: "df4f0usnh",
+    get UPLOAD_URL() {
+      return `https://api.cloudinary.com/v1_1/${this.CLOUD_NAME}/image/upload`;
+    },
+  };
+
+  const uploadImageToCloudinary = async (event) => {
+    const file = event.target.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_CONFIG.UPLOAD_PRESET);
+
     try {
-      // Simulate upload - replace with actual upload logic
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const imageUrl = URL.createObjectURL(file);
-      setEditedProfile((prev) => ({ ...prev, ProfilePicture: imageUrl }));
-    } catch (err) {
-      setError("Failed to upload image");
-    } finally {
-      setIsUploading(false);
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      console.log(data.secure_url);
+      setEditedProfile((prev) => ({
+        ...prev,
+        ProfilePicture: data.secure_url,
+      }));
+    } catch (error) {
+      console.error("Error uploading image:", error);
     }
   };
 
   const handleProfileUpdate = async () => {
     try {
-      const userRef = doc(db, "users", userId);
+      const userRef = doc(usersCollection, userId);
       await updateDoc(userRef, editedProfile);
       setIsEditMode(false);
       setShowSettings(false);
@@ -237,50 +256,50 @@ const ProfileSection = () => {
     }
   };
 
-  const handlePostAction = async (postId, action) => {
+  const handleRemoveProfilePicture = async () => {
     try {
-      const postRef = doc(db, "posts", postId);
-      switch (action) {
-        case "like":
-          await updateDoc(postRef, {
-            likes: arrayUnion(currentUserId),
-          });
-          break;
-        case "bookmark":
-          await updateDoc(postRef, {
-            bookmarks: arrayUnion(currentUserId),
-          });
-          break;
-        default:
-          break;
-      }
-    } catch (err) {
-      setError(`Failed to ${action} post`);
+      setEditedProfile((prev) => ({
+        ...prev,
+        ProfilePicture: "",
+      }));
+      toast.success("Profile picture removed, click save to update profile");
+    } catch (error) {
+      console.error("Error removing profile picture:", error);
     }
   };
 
-  const handleFollow = async () => {
+  const handleFollow = async (followedUserId) => {
     try {
-      const userRef = doc(db, "users", user);
-      const currentUserRef = doc(db, "users", userId);
+      const currentUserRef = doc(usersCollection, user);
+      const followedUserRef = doc(usersCollection, followedUserId);
 
       if (isFollowing) {
-        await updateDoc(userRef, {
-          following: arrayRemove(userId),
-        });
+        // Unfollow the user
         await updateDoc(currentUserRef, {
-          followers: arrayRemove(user),
+          followers: arrayRemove(followedUserId),
         });
+
+        await updateDoc(followedUserRef, {
+          following: arrayRemove(user),
+        });
+
+        setIsFollowing(false);
+        console.log(`User ${user} unfollowed ${followedUserId}`);
       } else {
-        await updateDoc(userRef, {
-          following: arrayUnion(userId),
-        });
+        // Follow the user
         await updateDoc(currentUserRef, {
+          following: arrayUnion(followedUserId),
+        });
+
+        await updateDoc(followedUserRef, {
           followers: arrayUnion(user),
         });
+
+        setIsFollowing(true);
+        console.log(`User ${user} followed ${followedUserId}`);
       }
-    } catch {
-      setError(`Failed to ${isFollowing ? "unfollow" : "follow"} user`);
+    } catch (error) {
+      console.error("Error following/unfollowing user:", error);
     }
   };
 
@@ -290,56 +309,21 @@ const ProfileSection = () => {
         key={post.postId}
         className="bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 overflow-hidden group w-full"
       >
-        
-        {post.content && (
-          <div className="px-4 py-4 pb-4">
-            <p className="text-gray-200 leading-relaxed">{post.content}</p>
-          </div>
-        )}
         {post.images && post.images.length > 0 && (
-          <div className="relative">
+          <>
             <ImageCarousel
+              post={post}
               images={post.images}
-              fh="h-[25vh]"
-              sh="sm:h-[30vh]"
+              postId={post.postId}
+              onLike={() => handleLike(post.postId)}
+              onComment={() => setActiveComments(post.postId)}
+              onShare={() => handleShare(post.postId)}
+              likes={likeCount[post.postId] || post.likes.length}
+              comments={comments[post.postId] || []}
+              shares={post.shares}
             />
-          </div>
+          </>
         )}
-        <div className="px-4 py-4 border-t border-gray-700/50">
-          <div className="flex items-center justify-between">
-            <div className="flex gap-6">
-              <button
-                className={`flex items-center gap-2 transition-colors group ${
-                  post.likes.includes(user)
-                    ? "text-red-400"
-                    : "text-gray-400 hover:text-red-400"
-                }`}
-                onClick={() => handleLike(post.postId)}
-              >
-                {post.likes.includes(user) ? (
-                  <Heart className="w-6 h-6" fill="currentColor" />
-                ) : (
-                  <Heart className="w-6 h-6" />
-                )}
-                <span>{likeCount[post.postId] || post.likes.length}</span>
-              </button>
-              <button
-                className="flex items-center gap-2 text-gray-400 hover:text-blue-400 transition-colors group"
-                onClick={() => setActiveComments(post.postId)}
-              >
-                <MessageCircle className="w-6 h-6" />
-                <span>{commentLength[post.postId] || 0}</span>
-              </button>
-              <button className="flex items-center gap-2 text-gray-400 hover:text-green-400 transition-colors group">
-                <Share2 className="w-6 h-6" />
-                <span>{post.shares}</span>
-              </button>
-            </div>
-            <button className="text-gray-400 hover:text-yellow-400 transition-colors">
-              <Bookmark className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
       </div>
     );
   };
@@ -355,6 +339,7 @@ const ProfileSection = () => {
       </div>
     );
   }
+
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -403,11 +388,17 @@ const ProfileSection = () => {
         <div className="flex flex-col items-center">
           <motion.div whileHover={{ scale: 1.05 }} className="relative group">
             <div className="w-40 h-40 rounded-full border-4 border-white overflow-hidden">
-              <img
-                src={editedProfile?.ProfilePicture || profile?.ProfilePicture}
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
+              {profile?.ProfilePicture ? (
+                <img
+                  src={editedProfile?.ProfilePicture || profile?.ProfilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-800 flex items-center justify-center text-white font-medium text-3xl">
+                  {profile?.Initials}
+                </div>
+              )}
             </div>
             {isEditMode && (
               <motion.button
@@ -423,7 +414,7 @@ const ProfileSection = () => {
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              onChange={handleImageUpload}
+              onChange={uploadImageToCloudinary}
               className="hidden"
             />
           </motion.div>
@@ -488,6 +479,14 @@ const ProfileSection = () => {
                   Cancel
                 </motion.button>
               </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleRemoveProfilePicture}
+                className="w-full py-2 bg-red-600 rounded-lg"
+              >
+                Remove Profile Picture
+              </motion.button>
             </motion.div>
           ) : (
             <>
@@ -533,32 +532,24 @@ const ProfileSection = () => {
 
           {/* Action Buttons */}
           <div className="flex gap-4 mt-6">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsEditMode(!isEditMode)}
-              className="px-6 py-2 bg-blue-600 rounded-lg flex items-center gap-2"
-            >
-              <Edit className="w-4 h-4" />
-              Edit Profile
-            </motion.button>
             {userId !== user && (
               <>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleFollow()}
+                  onClick={() => handleFollow(userId)}
                   className={`px-6 py-2 rounded-lg flex items-center gap-2 ${
                     isFollowing ? "bg-gray-700" : "bg-blue-600"
                   }`}
                 >
                   <Users className="w-4 h-4" />
-                  {isFollowing ? "Unfollow" : "Follow"}
+                  {isFollowing ? "Following" : "Follow"}
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="px-6 py-2 bg-gray-700 rounded-lg flex items-center gap-2"
+                  onClick={() => navigate(`/message/${userId}`)}
                 >
                   <MessageCircle className="w-4 h-4" />
                   Message
@@ -622,11 +613,12 @@ const ProfileSection = () => {
                 </button>
               </div>
               <div className="space-y-2">
-                {settingsOptions.map(({ id, label, icon: Icon }) => (
+                {settingsOptions.map(({ id, label, icon: Icon, onclick }) => (
                   <motion.button
                     key={id}
                     whileHover={{ x: 10 }}
                     className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-gray-700"
+                    onClick={onclick}
                   >
                     <Icon className="w-5 h-5" />
                     <span>{label}</span>

@@ -18,7 +18,7 @@ import {
   usersFriendsCollection,
   messagesCollection,
 } from "../Firebase/Firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import CreatePostModal from "../Modal/CreatePostModal";
 import Logo from "../../assets/logo.svg";
@@ -53,12 +53,16 @@ const Header = () => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setUser(user ? user.uid : null);
       if (user) {
-        const userDoc = await getDoc(doc(usersCollection, user.uid));
-        if (userDoc.exists()) {
-          setInitials(userDoc.data().Initials);
-          setUserAvatar(userDoc.data().ProfilePicture || "");
-          setName(userDoc.data().Name);
-        }
+        const userDocRef = doc(usersCollection, user.uid);
+        const unsubscribeUserDoc = onSnapshot(userDocRef, (userDoc) => {
+          if (userDoc.exists()) {
+            setInitials(userDoc.data().Initials);
+            setUserAvatar(userDoc.data().ProfilePicture || "");
+            setName(userDoc.data().Name);
+          }
+        });
+
+        return () => unsubscribeUserDoc();
       }
     });
 
@@ -130,7 +134,7 @@ const Header = () => {
       exit={{ x: "100%" }}
       className="fixed inset-0 z-50 bg-gray-900"
     >
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-[92vh]">
         {/* Mobile Menu Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-800">
           <button
@@ -146,7 +150,10 @@ const Header = () => {
         {/* Mobile Menu Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* User Profile Section */}
-          <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg cursor-pointer" onClick={() => navigate(`/profile/${user}`)}>
+          <div
+            className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg cursor-pointer"
+            onClick={() => navigate(`/profile/${user}`)}
+          >
             <UserProfile profilePic={userAvatar} initials={initials} />
             <div>
               <h3 className="text-white font-medium">{name}</h3>

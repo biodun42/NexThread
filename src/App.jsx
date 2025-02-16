@@ -14,7 +14,8 @@ function App() {
         <Route path="/" element={<Auth />} />
         <Route path="/home" element={<Home />} />
         <Route path="/profile/:userId" element={<Profile />} />
-        <Route path="/Message" element={<Message />} />
+        <Route path="/message" element={<Message />} />
+        <Route path="/message/:userId" element={<Message />} />
         <Route path="*" element={<Navigate to="/404" replace />} />
         <Route path="/404" element={<PageNotFound />} />
       </Routes>
