@@ -25,6 +25,7 @@ import {
 import CreatePostModal from "../Modal/CreatePostModal";
 import Comments from "../UI/comment";
 import LoadingHome from "../LoadingState/LoadingHome";
+import MessageAlert from "../UI/MessageAlert";
 
 const HomeSection = () => {
   const [posts, setPosts] = useState([]);
@@ -34,7 +35,9 @@ const HomeSection = () => {
   const [comments, setComments] = useState({});
   const [commentLength, setCommentLength] = useState({});
   const [loading, setLoading] = useState(true);
-  const { user } = useStateContext();
+  const { user, userProfileData } = useStateContext();
+  const [alertMessage, setAlertMessage] = useState("");
+  const [showAlert, setShowAlert] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(postsCollection, (snapshot) => {
@@ -88,7 +91,6 @@ const HomeSection = () => {
           ...prev,
           [post.postId]: commentsData,
         }));
-        console.log(commentsData);
         setCommentLength((prev) => ({
           ...prev,
           [post.postId]: commentsData.length,
@@ -99,10 +101,17 @@ const HomeSection = () => {
     return () => unsubscribeComments.forEach((unsubscribe) => unsubscribe());
   }, [posts]);
 
-  const handleLike = async (postId) => {
+  const requireAuth = (action) => {
     if (!user) {
-      return;
+      setAlertMessage(`Please sign in to ${action}`);
+      setShowAlert(true);
+      return true;
     }
+    return false;
+  };
+
+  const handleLike = async (postId) => {
+    if (requireAuth("like posts")) return;
 
     try {
       const postRef = doc(db, "Posts", postId);
@@ -134,22 +143,36 @@ const HomeSection = () => {
         )
       );
     } catch (error) {
-      console.error("Error updating like:", error);
+      setAlertMessage("Error updating like");
+      setShowAlert(true);
     }
   };
 
   const CreatePostButton = () => (
     <button
-      onClick={() => setIsModalOpen(true)}
+      onClick={() => {
+        if (requireAuth("create a post")) return;
+        setIsModalOpen(true);
+      }}
       className="w-full bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 p-4 flex items-center gap-4 hover:bg-gray-800 transition-all group"
     >
       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-[2px]">
         <div className="w-full h-full rounded-full bg-gray-800 flex items-center justify-center">
-          <UserRound className="w-6 h-6 text-gray-300" />
+          {user ? (
+            <img
+              src={userProfileData?.ProfilePicture || UserRound}
+              alt="Profile"
+              className="w-full h-full rounded-full object-cover"
+            />
+          ) : (
+            <UserRound className="w-6 h-6 text-gray-300" />
+          )}
         </div>
       </div>
       <div className="flex-grow text-left">
-        <span className="text-gray-400">Share your thoughts...</span>
+        <span className="text-gray-400">
+          {user ? "Share your thoughts..." : "Sign in to post..."}
+        </span>
       </div>
       <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-2 rounded-xl">
         <Plus className="w-5 h-5 text-white" />
@@ -220,6 +243,13 @@ const HomeSection = () => {
           onClose={() => setActiveComments(null)}
         />
       )}
+      <MessageAlert
+        message={alertMessage}
+        isVisible={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertMessage.includes("successfully") ? "success" : "error"}
+        position={alertMessage.includes("successfully") ? "bottom" : "top"}
+      />
     </div>
   );
 };

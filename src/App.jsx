@@ -6,13 +6,18 @@ import PageNotFound from "./Pages/PageNotFound";
 import Auth from "./Pages/Auth";
 import Message from "./Pages/Message";
 import Profile from "./Pages/Profile";
+import { useStateContext } from "./Components/Context/Statecontext";
 
 function App() {
+  const { user } = useStateContext();
   return (
     <>
       <Routes>
-        <Route path="/" element={<Auth />} />
-        <Route path="/home" element={<Home />} />
+        <Route path="/" element={<Home />} />
+        <Route
+          path="/auth"
+          element={user ? <Navigate to="/home" replace /> : <Auth />}
+        />
         <Route path="/profile/:userId" element={<Profile />} />
         <Route path="/message" element={<Message />} />
         <Route path="/message/:userId" element={<Message />} />

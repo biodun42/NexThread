@@ -30,13 +30,19 @@ import { useNavigate } from "react-router-dom";
 import CreatePostModal from "../Modal/CreatePostModal";
 import Logo from "../../assets/logo.svg";
 import { useStateContext } from "../Context/Statecontext";
+import MessageAlert from "./MessageAlert";
 
 const Header = () => {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [initials, setInitials] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
-  const { user, setUser, headerMessages: messages } = useStateContext();
+  const {
+    user,
+    setUser,
+    headerMessages: messages,
+    setUserProfileData,
+  } = useStateContext();
   const [notifications, setNotifications] = useState([]);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -45,6 +51,8 @@ const Header = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [showAlert, setShowAlert] = useState(false);
 
   // Check for mobile view
   useEffect(() => {
@@ -63,18 +71,23 @@ const Header = () => {
         const userDocRef = doc(usersCollection, user.uid);
         const unsubscribeUserDoc = onSnapshot(userDocRef, (userDoc) => {
           if (userDoc.exists()) {
-            setInitials(userDoc.data().Initials);
-            setUserAvatar(userDoc.data().ProfilePicture || "");
-            setName(userDoc.data().Name);
+            const userData = userDoc.data();
+            setInitials(userData.Initials);
+            setUserAvatar(userData.ProfilePicture || "");
+            setName(userData.Name);
+            // Set user profile data in context
+            setUserProfileData(userData);
           }
         });
 
         return () => unsubscribeUserDoc();
+      } else {
+        setUserProfileData(null);
       }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [setUser, setUserProfileData]);
 
   useEffect(() => {
     const CheckForArrays = async () => {
@@ -154,9 +167,12 @@ const Header = () => {
   const handleLogout = async () => {
     try {
       await auth.signOut();
-      navigate("/");
+      setAlertMessage("Logged out successfully");
+      setShowAlert(true);
+      navigate("/auth");
     } catch (error) {
-      console.error("Logout error:", error);
+      setAlertMessage("Error logging out");
+      setShowAlert(true);
     }
   };
 
@@ -312,7 +328,18 @@ const Header = () => {
             </div>
 
             {/* Right Section - Desktop */}
-            {!isMobileView ? (
+            {!user ? (
+              <div className="flex items-center gap-4">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate("/auth")}
+                  className="px-4 py-2 rounded-lg bg-violet-500 text-white hover:bg-violet-600 transition-colors"
+                >
+                  Sign In
+                </motion.button>
+              </div>
+            ) : (
               <div className="flex items-center gap-4">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -483,27 +510,6 @@ const Header = () => {
                   </AnimatePresence>
                 </motion.div>
               </div>
-            ) : (
-              // Mobile Right Section
-              <div className="flex items-center gap-2">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setIsCreatePostModalOpen(true)}
-                  className="p-2 bg-violet-600 text-white rounded-lg"
-                >
-                  <Plus className="w-5 h-5" />
-                </motion.button>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowMobileMenu(true)}
-                  className="flex items-center gap-2"
-                >
-                  <UserProfile profilePic={userAvatar} initials={initials} />
-                </motion.button>
-              </div>
             )}
           </div>
         </div>
@@ -518,6 +524,15 @@ const Header = () => {
       <CreatePostModal
         isOpen={isCreatePostModalOpen}
         onClose={() => setIsCreatePostModalOpen(false)}
+      />
+
+      {/* Add MessageAlert here */}
+      <MessageAlert
+        message={alertMessage}
+        isVisible={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertMessage.includes("successfully") ? "success" : "error"}
+        position="top"
       />
     </>
   );

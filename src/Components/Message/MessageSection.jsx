@@ -25,6 +25,7 @@ import {
 import { db, messagesCollection, usersCollection } from "../Firebase/Firebase";
 import { useStateContext } from "../Context/Statecontext";
 import { useParams, useNavigate } from "react-router-dom";
+import LoadingMessageState from "../LoadingState/LoadingMessageState";
 
 const CLOUDINARY_CONFIG = {
   UPLOAD_PRESET: "Posts_For_NexThread",
@@ -103,6 +104,7 @@ const getPresenceStatus = (contact) => {
 };
 
 const MessageSection = ({ setIsChatOpen }) => {
+  const [isLoading, setIsLoading] = useState(true);
   const [contacts, setContacts] = useState([]);
   const [filteredContacts, setFilteredContacts] = useState([]);
   const [selectedContact, setSelectedContact] = useState(null);
@@ -175,6 +177,7 @@ const MessageSection = ({ setIsChatOpen }) => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
+        setIsLoading(true);
         // First get the current user's following list
         const currentUserRef = doc(usersCollection, user);
         const currentUserDoc = await getDoc(currentUserRef);
@@ -200,6 +203,8 @@ const MessageSection = ({ setIsChatOpen }) => {
         return () => unsubscribe();
       } catch (error) {
         console.error("Error fetching contacts:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -266,7 +271,9 @@ const MessageSection = ({ setIsChatOpen }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Update the handleInputChangeForChat function
   const handleInputChangeForChat = (e) => {
+    e.preventDefault();
     setNewMessage(e.target.value);
   };
 
@@ -384,6 +391,8 @@ const MessageSection = ({ setIsChatOpen }) => {
       return [];
     }
   };
+
+
 
   // Update MessageBubble component to handle read status
   const MessageBubble = ({ message }) => {
@@ -560,7 +569,12 @@ const MessageSection = ({ setIsChatOpen }) => {
               }
               value={newMessage}
               onChange={handleInputChangeForChat}
-              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
               disabled={!canMessageUser(selectedContact?.id)}
               className="w-full bg-gray-700/50 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 placeholder:text-white/30 disabled:opacity-50"
             />
@@ -769,6 +783,10 @@ const MessageSection = ({ setIsChatOpen }) => {
         }, 2000);
       }
     };
+
+      if (isLoading) {
+        return <LoadingMessageState />;
+      }
 
     return (
       <motion.div

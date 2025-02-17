@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import Logo from "../../assets/logo.svg";
 import { auth } from "../Firebase/Firebase";
-import { toast } from "react-toastify";
 import { useStateContext } from "../Context/Statecontext";
+import MessageAlert from "../UI/MessageAlert";
 
 // Add prop to receive chat state
 const Sidebar = ({ isChatOpen }) => {
@@ -28,6 +28,8 @@ const Sidebar = ({ isChatOpen }) => {
   const [unreadNotifications, setUnreadNotifications] = useState(5);
   const { user } = useStateContext();
   const [mounted, setMounted] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [showAlert, setShowAlert] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -57,13 +59,24 @@ const Sidebar = ({ isChatOpen }) => {
     return null;
   }
 
+  const requireAuth = (action) => {
+    if (!user) {
+      setAlertMessage(`Please sign in to ${action}`);
+      setShowAlert(true);
+      return true;
+    }
+    return false;
+  };
+
   const handleLogout = async () => {
     try {
       await auth.signOut();
-      toast.success("Logged out successfully 🎉");
-      navigate("/");
+      setAlertMessage("Logged out successfully");
+      setShowAlert(true);
+      navigate("/auth");
     } catch (error) {
-      console.error("Error logging out", error);
+      setAlertMessage("Error logging out");
+      setShowAlert(true);
     }
   };
 
@@ -71,22 +84,37 @@ const Sidebar = ({ isChatOpen }) => {
     navigate(path);
   };
 
-  const menuItems = [
-    { icon: HomeIcon, label: "Home", path: "/home" },
-    { icon: Search, label: "Search", path: "/search" },
-    { icon: Compass, label: "Explore", path: "/explore" },
-    { icon: MessageSquareText, label: "Messages", path: "/message" },
-    {
-      icon: Bell,
-      label: "Notifications",
-      path: "/notifications",
-      badge: unreadNotifications,
-    },
-    { icon: User2, label: "Profile", path: `/profile/${user}` },
-  ];
+  // Update the menuItems array to only show when user is authenticated
+  const menuItems = user
+    ? [
+        { icon: HomeIcon, label: "Home", path: "/" },
+        { icon: Search, label: "Search", path: "/search" },
+        { icon: Compass, label: "Explore", path: "/explore" },
+        { icon: MessageSquareText, label: "Messages", path: "/message" },
+        {
+          icon: Bell,
+          label: "Notifications",
+          path: "/notifications",
+          badge: unreadNotifications,
+        },
+        { icon: User2, label: "Profile", path: `/profile/${user}` },
+      ]
+    : [
+        { icon: HomeIcon, label: "Home", path: "/" },
+        { icon: Search, label: "Search", path: "/search" },
+        { icon: Compass, label: "Explore", path: "/explore" },
+      ];
 
   const secondaryItems = [
-    { icon: Settings, label: "Settings", path: "/settings" },
+    {
+      icon: Settings,
+      label: "Settings",
+      path: "/settings",
+      onClick: () => {
+        if (requireAuth("access settings")) return;
+        navigateTo("/settings");
+      },
+    },
   ];
 
   const SideHeader = () => (
@@ -149,6 +177,22 @@ const Sidebar = ({ isChatOpen }) => {
     </motion.div>
   );
 
+  // Add SignInButton component
+  const SignInButton = () => (
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => navigate("/auth")}
+      className="w-full"
+    >
+      <div className="relative flex items-center gap-4 p-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 transition-all">
+        <User2 size={24} className="text-white" />
+        <span className="font-medium text-white">Sign In</span>
+      </div>
+    </motion.button>
+  );
+
+  // Update DesktopSidebar component
   const DesktopSidebar = () => (
     <motion.div
       animate={{ x: 0, opacity: 1 }}
@@ -174,36 +218,38 @@ const Sidebar = ({ isChatOpen }) => {
       </div>
 
       <div className="p-3 border-t border-white/10 space-y-1">
-        {secondaryItems.map((item, index) => (
-          <button
-            key={item.path}
-            onClick={() => navigateTo(item.path)}
-            className="w-full"
-          >
-            <MenuItem
-              item={item}
-              isActive={location.pathname === item.path}
-              index={index + menuItems.length}
-            />
-          </button>
-        ))}
-
-        <button onClick={handleLogout} className="w-full mt-2 group">
-          <div className="relative flex items-center gap-4 p-3 rounded-xl transition-all group-hover:bg-red-500/10">
-            <LogOut size={24} className="text-red-400" />
-            <span className="font-medium text-red-400">Logout</span>
-          </div>
-        </button>
+        {user ? (
+          <>
+            {secondaryItems.map((item, index) => (
+              <button key={item.path} onClick={item.onClick} className="w-full">
+                <MenuItem
+                  item={item}
+                  isActive={location.pathname === item.path}
+                  index={index + menuItems.length}
+                />
+              </button>
+            ))}
+            <button onClick={handleLogout} className="w-full mt-2 group">
+              <div className="relative flex items-center gap-4 p-3 rounded-xl transition-all group-hover:bg-red-500/10">
+                <LogOut size={24} className="text-red-400" />
+                <span className="font-medium text-red-400">Logout</span>
+              </div>
+            </button>
+          </>
+        ) : (
+          <SignInButton />
+        )}
       </div>
     </motion.div>
   );
 
+  // Update MobileNavigation component
   const MobileNavigation = () => (
     <motion.div
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
       className={`fixed z-[100] bottom-0 left-0 right-0 bg-gradient-to-b from-gray-900/95 to-gray-800/95 backdrop-blur-lg border-t border-white/10 ${
-        isChatOpen ? 'hidden' : 'block'
+        isChatOpen ? "hidden" : "block"
       }`}
     >
       <div className="flex justify-around items-center p-2">
@@ -248,69 +294,70 @@ const Sidebar = ({ isChatOpen }) => {
 
   const MobileMenu = () => (
     <AnimatePresence>
-      {showMobileMenu && !isChatOpen && ( // Add !isChatOpen condition
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
-        >
+      {showMobileMenu &&
+        !isChatOpen && ( // Add !isChatOpen condition
           <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="absolute right-0 top-0 bottom-0 w-64 bg-gradient-to-br from-gray-900 to-gray-800 border-l border-white/10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
           >
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between p-4 border-b border-white/10">
-                <SideHeader />
-                <button
-                  onClick={() => setShowMobileMenu(false)}
-                  className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              <div className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-hide">
-                {[...menuItems, ...secondaryItems].map((item, index) => (
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="absolute right-0 top-0 bottom-0 w-64 bg-gradient-to-br from-gray-900 to-gray-800 border-l border-white/10"
+            >
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between p-4 border-b border-white/10">
+                  <SideHeader />
                   <button
-                    key={item.path}
+                    onClick={() => setShowMobileMenu(false)}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-hide">
+                  {[...menuItems, ...secondaryItems].map((item, index) => (
+                    <button
+                      key={item.path}
+                      onClick={() => {
+                        item.onClick ? item.onClick() : navigateTo(item.path);
+                        setShowMobileMenu(false);
+                      }}
+                      className="w-full"
+                    >
+                      <MenuItem
+                        item={item}
+                        isActive={location.pathname === item.path}
+                        index={index}
+                      />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-3 border-t border-white/10">
+                  <button
+                    className="w-full group"
                     onClick={() => {
-                      navigateTo(item.path);
+                      handleLogout();
                       setShowMobileMenu(false);
                     }}
-                    className="w-full"
                   >
-                    <MenuItem
-                      item={item}
-                      isActive={location.pathname === item.path}
-                      index={index}
-                    />
+                    <div className="relative flex items-center gap-4 p-3 rounded-xl transition-all group-hover:bg-red-500/10">
+                      <LogOut size={24} className="text-red-400" />
+                      <span className="font-medium text-red-400">Logout</span>
+                    </div>
                   </button>
-                ))}
+                </div>
               </div>
-
-              <div className="p-3 border-t border-white/10">
-                <button
-                  className="w-full group"
-                  onClick={() => {
-                    handleLogout();
-                    setShowMobileMenu(false);
-                  }}
-                >
-                  <div className="relative flex items-center gap-4 p-3 rounded-xl transition-all group-hover:bg-red-500/10">
-                    <LogOut size={24} className="text-red-400" />
-                    <span className="font-medium text-red-400">Logout</span>
-                  </div>
-                </button>
-              </div>
-            </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
+        )}
     </AnimatePresence>
   );
 
@@ -324,6 +371,13 @@ const Sidebar = ({ isChatOpen }) => {
       ) : (
         <DesktopSidebar />
       )}
+      <MessageAlert
+        message={alertMessage}
+        isVisible={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertMessage.includes("Logged out successfully") ? "success" : "error"}
+        position="top"
+      />
     </>
   );
 };

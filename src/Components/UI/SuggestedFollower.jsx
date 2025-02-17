@@ -1,7 +1,7 @@
 import { Users } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import Avatar from "../../assets/Profile.svg";
-import { db, usersCollection } from "../Firebase/Firebase"; // Import Firebase configurations
+import { usersCollection } from "../Firebase/Firebase"; // Import Firebase configurations
 import {
   getDocs,
   doc,
@@ -11,6 +11,8 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { useStateContext } from "../Context/Statecontext"; // Import context to get current user
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const SuggestedFollower = () => {
   const [suggestedUsers, setSuggestedUsers] = useState([]);
@@ -60,7 +62,24 @@ const SuggestedFollower = () => {
     window.location.href = path;
   };
 
+  const requireAuth = (action) => {
+    if (!user) {
+      toast.error(`Please sign in to ${action}`, {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      return true;
+    }
+    return false;
+  };
+
   const handleFollow = async (followedUserId) => {
+    if (requireAuth("follow users")) return;
+
     try {
       const currentUserRef = doc(usersCollection, user);
       const followedUserRef = doc(usersCollection, followedUserId);
@@ -76,7 +95,10 @@ const SuggestedFollower = () => {
         });
 
         setFollowing((prev) => prev.filter((id) => id !== followedUserId));
-        console.log(`User ${user} unfollowed ${followedUserId}`);
+        toast.success("Unfollowed successfully", {
+          position: "bottom-center",
+          autoClose: 3000,
+        });
       } else {
         // Follow the user
         await updateDoc(currentUserRef, {
@@ -88,10 +110,16 @@ const SuggestedFollower = () => {
         });
 
         setFollowing((prev) => [...prev, followedUserId]);
-        console.log(`User ${user} followed ${followedUserId}`);
+        toast.success("Followed successfully", {
+          position: "bottom-center",
+          autoClose: 3000,
+        });
       }
     } catch (error) {
-      console.error("Error following/unfollowing user:", error);
+      toast.error("Error updating follow status", {
+        position: "top-center",
+        autoClose: 3000,
+      });
     }
   };
 

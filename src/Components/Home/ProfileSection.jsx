@@ -32,6 +32,7 @@ import { useStateContext } from "../Context/Statecontext";
 import ImageCarousel from "../UI/ImageCarousel";
 import Comments from "../UI/comment";
 import { toast } from "react-toastify";
+import MessageAlert from "../UI/MessageAlert";
 
 const renderContent = (viewMode, posts, renderPost) => {
   switch (viewMode) {
@@ -77,6 +78,8 @@ const ProfileSection = () => {
   const [commentLength, setCommentLength] = useState({});
   const [likeCount, setLikeCount] = useState({});
   const [comments, setComments] = useState({});
+  const [alertMessage, setAlertMessage] = useState("");
+  const [showAlert, setShowAlert] = useState(false);
   const navigate = useNavigate();
 
   const fileInputRef = useRef(null);
@@ -87,17 +90,24 @@ const ProfileSection = () => {
     { id: "about", icon: Globe, label: "About" },
   ];
 
-  const settingsOptions = [
-    {
-      id: "edit-profile",
-      label: "Edit Profile",
-      icon: Edit,
-      onclick: () => {
-        setIsEditMode(true);
-        setShowSettings(false);
-      },
-    },
-  ];
+  const canAccessSettings = () => {
+    return user === userId; // Only allow access if viewing own profile
+  };
+
+  const settingsOptions = canAccessSettings()
+    ? [
+        {
+          id: "edit-profile",
+          label: "Edit Profile",
+          icon: Edit,
+          onclick: () => {
+            if (requireAuth("edit profile")) return;
+            setIsEditMode(true);
+            setShowSettings(false);
+          },
+        },
+      ]
+    : [];
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -175,9 +185,7 @@ const ProfileSection = () => {
   }, [posts]);
 
   const handleLike = async (postId) => {
-    if (!user) {
-      return;
-    }
+    if (requireAuth("like posts")) return;
 
     try {
       const postRef = doc(db, "Posts", postId);
@@ -239,9 +247,21 @@ const ProfileSection = () => {
         ...prev,
         ProfilePicture: data.secure_url,
       }));
+      setAlertMessage("Profile picture updated successfully");
+      setShowAlert(true);
     } catch (error) {
-      console.error("Error uploading image:", error);
+      setAlertMessage("Error uploading image");
+      setShowAlert(true);
     }
+  };
+
+  const requireAuth = (action) => {
+    if (!user) {
+      setAlertMessage(`Please sign in to ${action}`);
+      setShowAlert(true);
+      return true;
+    }
+    return false;
   };
 
   const handleProfileUpdate = async () => {
@@ -250,8 +270,12 @@ const ProfileSection = () => {
       await updateDoc(userRef, editedProfile);
       setIsEditMode(false);
       setShowSettings(false);
+      // Show success message
+      setAlertMessage("Profile updated successfully");
+      setShowAlert(true);
     } catch (err) {
-      setError("Failed to update profile");
+      setAlertMessage("Failed to update profile");
+      setShowAlert(true);
     }
   };
 
@@ -261,13 +285,17 @@ const ProfileSection = () => {
         ...prev,
         ProfilePicture: "",
       }));
-      toast.success("Profile picture removed, click save to update profile");
+      setAlertMessage("Profile picture removed, click save to update profile");
+      setShowAlert(true);
     } catch (error) {
-      console.error("Error removing profile picture:", error);
+      setAlertMessage("Error removing profile picture");
+      setShowAlert(true);
     }
   };
 
   const handleFollow = async (followedUserId) => {
+    if (requireAuth("follow users")) return;
+
     try {
       const currentUserRef = doc(usersCollection, user);
       const followedUserRef = doc(usersCollection, followedUserId);
@@ -297,9 +325,24 @@ const ProfileSection = () => {
         setIsFollowing(true);
         console.log(`User ${user} followed ${followedUserId}`);
       }
+      setAlertMessage(
+        isFollowing ? "Unfollowed successfully" : "Followed successfully"
+      );
+      setShowAlert(true);
     } catch (error) {
-      console.error("Error following/unfollowing user:", error);
+      setAlertMessage("Error updating follow status");
+      setShowAlert(true);
     }
+  };
+
+  const handleComment = (postId) => {
+    if (requireAuth("comment on posts")) return;
+    setActiveComments(postId);
+  };
+
+  const handleShare = (postId) => {
+    if (requireAuth("share posts")) return;
+    setShowShareModal(true);
   };
 
   const renderPost = (post) => {
@@ -312,7 +355,7 @@ const ProfileSection = () => {
               images={post.images}
               postId={post.postId}
               onLike={() => handleLike(post.postId)}
-              onComment={() => setActiveComments(post.postId)}
+              onComment={() => handleComment(post.postId)}
               onShare={() => handleShare(post.postId)}
               likes={likeCount[post.postId] || post.likes.length}
               comments={comments[post.postId] || []}
@@ -358,7 +401,10 @@ const ProfileSection = () => {
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setShowSettings(!showSettings)}
+            onClick={() => {
+              if (requireAuth("access settings")) return;
+              setShowSettings(!showSettings);
+            }}
             className="p-2 bg-gray-800/80 rounded-full"
           >
             <Settings className="w-5 h-5" />
@@ -543,7 +589,10 @@ const ProfileSection = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="px-6 py-2 bg-gray-700 rounded-lg flex items-center gap-2"
-                  onClick={() => navigate(`/message/${userId}`)}
+                  onClick={() => {
+                    if (requireAuth("send messages")) return;
+                    navigate(`/message/${userId}`);
+                  }}
                 >
                   <MessageCircle className="w-4 h-4" />
                   Message
@@ -582,7 +631,7 @@ const ProfileSection = () => {
 
       {/* Settings Modal */}
       <AnimatePresence>
-        {showSettings && (
+        {showSettings && user && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -645,7 +694,7 @@ const ProfileSection = () => {
               <div className="flex flex-col gap-4">
                 <input
                   type="text"
-                  value={`https://yourapp.com/profile/${userId}`}
+                  value={`https://nexthread.pages.dev/profile/${userId}`}
                   readOnly
                   className="w-full px-4 py-2 bg-gray-700 rounded-lg"
                 />
@@ -656,9 +705,11 @@ const ProfileSection = () => {
                     className="py-2 bg-blue-600 rounded-lg"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        `https://yourapp.com/profile/${userId}`
+                        `https://nexthread.pages.dev/profile/${userId}`
                       );
                       setShowShareModal(false);
+                      setAlertMessage("profile link copied successfully! 🔗");
+                      setShowAlert(true);
                     }}
                   >
                     Copy Link
@@ -685,6 +736,23 @@ const ProfileSection = () => {
           onClose={() => setActiveComments(null)}
         />
       )}
+      <MessageAlert
+        message={alertMessage}
+        isVisible={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={
+          alertMessage.includes("successfully") ||
+          alertMessage.includes("Welcome")
+            ? "success"
+            : "error"
+        }
+        position={
+          alertMessage.includes("successfully") ||
+          alertMessage.includes("Welcome")
+            ? "bottom"
+            : "top"
+        }
+      />
     </div>
   );
 };

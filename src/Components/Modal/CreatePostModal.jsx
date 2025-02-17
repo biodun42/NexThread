@@ -27,9 +27,9 @@ import {
   Send,
   Loader2,
 } from "lucide-react";
-import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import { v4 as uuidv4 } from "uuid";
+import MessageAlert from "../UI/MessageAlert";
 
 const CreatePostModal = ({ isOpen, onClose }) => {
   const [content, setContent] = useState("");
@@ -44,6 +44,8 @@ const CreatePostModal = ({ isOpen, onClose }) => {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [previewImages, setPreviewImages] = useState([]);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [showAlert, setShowAlert] = useState(false);
 
   // Constants and refs (same as original)
   const MAX_CHAR_COUNT = 500;
@@ -385,22 +387,17 @@ const CreatePostModal = ({ isOpen, onClose }) => {
       await Promise.all(notificationUpdates);
 
       // Show success message and reset form
-      toast.success("Post created successfully!", {
-        position: "top-right",
-        autoClose: 2000,
-      });
-
+      setAlertMessage("Post created successfully! 🎉");
+      setShowAlert(true);
       resetForm();
       onClose();
     } catch (error) {
       console.error("Error creating post:", error);
       setError(error.message || "Failed to create post. Please try again.");
 
-      // Show error toast
-      toast.error("Failed to create post", {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      // Show error alert
+      setAlertMessage("Failed to create post");
+      setShowAlert(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -419,283 +416,294 @@ const CreatePostModal = ({ isOpen, onClose }) => {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={onClose}
-          />
+        <>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={onClose}
+            />
 
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="sidebar relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-700/30"
-          >
-            {/* Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between p-4 backdrop-blur-md bg-gray-900/80 border-b border-gray-700/30">
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-violet-600 bg-clip-text text-transparent">
-                Create Post
-              </h2>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClose();
-                }}
-                className="p-2 hover:bg-gray-800/80 rounded-full transition-colors duration-200"
-              >
-                <X className="w-5 h-5 text-gray-400 hover:text-white" />
-              </button>
-            </div>
-
-            {/* Content Area */}
-            <div className="p-4 space-y-4">
-              {/* Text Input */}
-              <div className="relative group">
-                <textarea
-                  ref={textareaRef}
-                  value={content}
-                  onChange={(e) => {
-                    if (e.target.value.length <= MAX_CHAR_COUNT) {
-                      setContent(e.target.value);
-                      setCharCount(e.target.value.length);
-                    }
-                  }}
-                  placeholder="What's on your mind?"
-                  className="w-full min-h-[120px] bg-gray-800/30 text-white rounded-xl p-4 resize-none border border-gray-700/30 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-gray-500"
-                  disabled={isSubmitting}
-                />
-                <motion.span
-                  animate={{
-                    color:
-                      charCount > MAX_CHAR_COUNT * 0.9 ? "#f87171" : "#9ca3af",
-                  }}
-                  className="absolute bottom-3 right-3 text-sm"
-                >
-                  {charCount}/{MAX_CHAR_COUNT}
-                </motion.span>
-              </div>
-
-              {/* Image Upload Area */}
-              <motion.div
-                animate={{
-                  borderColor: dragOver ? "#8b5cf6" : "rgb(55, 65, 81)",
-                  backgroundColor: dragOver
-                    ? "rgba(139, 92, 246, 0.1)"
-                    : "transparent",
-                }}
-                className="relative rounded-xl border-2 border-dashed p-6 transition-colors duration-200"
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  multiple
-                  accept={ALLOWED_IMAGE_TYPES.join(",")}
-                  className="hidden"
-                />
-                <div className="text-center">
-                  <ImageIcon className="w-12 h-12 mx-auto mb-4 text-violet-500" />
-                  <p className="text-gray-300 mb-2">
-                    Drag and drop images here or{" "}
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-violet-400 hover:text-violet-300 font-medium transition-colors duration-200"
-                    >
-                      browse
-                    </button>
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Max {MAX_IMAGES} images • {MAX_IMAGE_SIZE / (1024 * 1024)}MB
-                    each
-                  </p>
-                </div>
-              </motion.div>
-
-              {/* Image Preview Grid */}
-              <AnimatePresence>
-                {(images.length > 0 || previewImages.length > 0) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-                  >
-                    {[...previewImages, ...images].map((img, index) => (
-                      <motion.div
-                        key={img.id}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="relative group rounded-xl overflow-hidden bg-gray-800/30"
-                      >
-                        <img
-                          src={img.preview || img.url}
-                          alt="Preview"
-                          className="w-full h-48 object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <button
-                            onClick={() => removeImage(img.id)}
-                            className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-600 rounded-full text-white transition-colors duration-200"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                        {imageUploadProgress[img?.file?.name] && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                            <div className="text-white text-center">
-                              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                              <span className="font-medium">
-                                {imageUploadProgress[img.file.name]}%
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Tools Bar */}
-              <div className="flex items-center justify-between p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 backdrop-blur-sm">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isSubmitting || images.length >= MAX_IMAGES}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-violet-500/20 rounded-lg transition-all duration-200 disabled:opacity-50"
-                    title="Add images"
-                  >
-                    <Camera className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => setIsMentioning(true)}
-                    disabled={isSubmitting}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-violet-500/20 rounded-lg transition-all duration-200"
-                    title="Mention user"
-                  >
-                    <AtSign className="w-5 h-5" />
-                  </button>
-                </div>
-
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="sidebar relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-700/30"
+            >
+              {/* Header */}
+              <div className="sticky top-0 z-10 flex items-center justify-between p-4 backdrop-blur-md bg-gray-900/80 border-b border-gray-700/30">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-violet-600 bg-clip-text text-transparent">
+                  Create Post
+                </h2>
                 <button
-                  onClick={() =>
-                    setPrivacy((prev) =>
-                      prev === "public"
-                        ? "friends"
-                        : prev === "friends"
-                        ? "private"
-                        : "public"
-                    )
-                  }
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-all duration-200"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                  }}
+                  className="p-2 hover:bg-gray-800/80 rounded-full transition-colors duration-200"
                 >
-                  {privacy === "public" ? (
-                    <Globe className="w-4 h-4" />
-                  ) : privacy === "friends" ? (
-                    <Users className="w-4 h-4" />
-                  ) : (
-                    <Lock className="w-4 h-4" />
-                  )}
-                  <span className="capitalize text-white">{privacy}</span>
+                  <X className="w-5 h-5 text-gray-400 hover:text-white" />
                 </button>
               </div>
 
-              {/* Mentions Panel */}
-              <AnimatePresence>
-                {isMentioning && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="mt-2 p-2 bg-gray-800/30 rounded-xl border border-gray-700/30 max-h-48 overflow-y-auto backdrop-blur-sm"
+              {/* Content Area */}
+              <div className="p-4 space-y-4">
+                {/* Text Input */}
+                <div className="relative group">
+                  <textarea
+                    ref={textareaRef}
+                    value={content}
+                    onChange={(e) => {
+                      if (e.target.value.length <= MAX_CHAR_COUNT) {
+                        setContent(e.target.value);
+                        setCharCount(e.target.value.length);
+                      }
+                    }}
+                    placeholder="What's on your mind?"
+                    className="w-full min-h-[120px] bg-gray-800/30 text-white rounded-xl p-4 resize-none border border-gray-700/30 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-gray-500"
+                    disabled={isSubmitting}
+                  />
+                  <motion.span
+                    animate={{
+                      color:
+                        charCount > MAX_CHAR_COUNT * 0.9
+                          ? "#f87171"
+                          : "#9ca3af",
+                    }}
+                    className="absolute bottom-3 right-3 text-sm"
                   >
-                    {isLoadingUsers ? (
-                      <div className="flex justify-center p-4">
-                        <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
-                      </div>
-                    ) : (
-                      suggestedUsers.map((user) => (
-                        <button
-                          key={user.id}
-                          onClick={() => addMention(user.Username)}
-                          className="flex items-center gap-3 w-full p-3 hover:bg-violet-500/10 rounded-lg transition-all duration-200"
+                    {charCount}/{MAX_CHAR_COUNT}
+                  </motion.span>
+                </div>
+
+                {/* Image Upload Area */}
+                <motion.div
+                  animate={{
+                    borderColor: dragOver ? "#8b5cf6" : "rgb(55, 65, 81)",
+                    backgroundColor: dragOver
+                      ? "rgba(139, 92, 246, 0.1)"
+                      : "transparent",
+                  }}
+                  className="relative rounded-xl border-2 border-dashed p-6 transition-colors duration-200"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    multiple
+                    accept={ALLOWED_IMAGE_TYPES.join(",")}
+                    className="hidden"
+                  />
+                  <div className="text-center">
+                    <ImageIcon className="w-12 h-12 mx-auto mb-4 text-violet-500" />
+                    <p className="text-gray-300 mb-2">
+                      Drag and drop images here or{" "}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-violet-400 hover:text-violet-300 font-medium transition-colors duration-200"
+                      >
+                        browse
+                      </button>
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Max {MAX_IMAGES} images • {MAX_IMAGE_SIZE / (1024 * 1024)}
+                      MB each
+                    </p>
+                  </div>
+                </motion.div>
+
+                {/* Image Preview Grid */}
+                <AnimatePresence>
+                  {(images.length > 0 || previewImages.length > 0) && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 20 }}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                    >
+                      {[...previewImages, ...images].map((img, index) => (
+                        <motion.div
+                          key={img.id}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="relative group rounded-xl overflow-hidden bg-gray-800/30"
                         >
-                          {user.ProfilePicture ? (
-                            <img
-                              src={user.ProfilePicture}
-                              alt=""
-                              className="w-8 h-8 rounded-full"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center text-white font-medium">
-                              {user.Username?.[0]?.toUpperCase()}
+                          <img
+                            src={img.preview || img.url}
+                            alt="Preview"
+                            className="w-full h-48 object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <button
+                              onClick={() => removeImage(img.id)}
+                              className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-600 rounded-full text-white transition-colors duration-200"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          {imageUploadProgress[img?.file?.name] && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                              <div className="text-white text-center">
+                                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                                <span className="font-medium">
+                                  {imageUploadProgress[img.file.name]}%
+                                </span>
+                              </div>
                             </div>
                           )}
-                          <div className="text-left">
-                            <div className="text-white font-medium">
-                              {user.Name}
-                            </div>
-                            <div className="text-gray-400 text-sm">
-                              @{user.Username}
-                            </div>
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-              {/* Error Message */}
-              <AnimatePresence>
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400"
+                {/* Tools Bar */}
+                <div className="flex items-center justify-between p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 backdrop-blur-sm">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isSubmitting || images.length >= MAX_IMAGES}
+                      className="p-2 text-gray-400 hover:text-white hover:bg-violet-500/20 rounded-lg transition-all duration-200 disabled:opacity-50"
+                      title="Add images"
+                    >
+                      <Camera className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setIsMentioning(true)}
+                      disabled={isSubmitting}
+                      className="p-2 text-gray-400 hover:text-white hover:bg-violet-500/20 rounded-lg transition-all duration-200"
+                      title="Mention user"
+                    >
+                      <AtSign className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setPrivacy((prev) =>
+                        prev === "public"
+                          ? "friends"
+                          : prev === "friends"
+                          ? "private"
+                          : "public"
+                      )
+                    }
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-all duration-200"
                   >
-                    {error}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                    {privacy === "public" ? (
+                      <Globe className="w-4 h-4" />
+                    ) : privacy === "friends" ? (
+                      <Users className="w-4 h-4" />
+                    ) : (
+                      <Lock className="w-4 h-4" />
+                    )}
+                    <span className="capitalize text-white">{privacy}</span>
+                  </button>
+                </div>
 
-            {/* Footer */}
-            <div className="sticky bottom-0 p-4 border-t border-gray-700/30 backdrop-blur-md bg-gray-900/80">
-              <button
-                onClick={handleSubmit}
-                disabled={
-                  isSubmitting || (!content.trim() && images.length === 0)
-                }
-                className="w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-600 text-white rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Creating post...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-5 h-5" />
-                    <span>Post</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </div>
+                {/* Mentions Panel */}
+                <AnimatePresence>
+                  {isMentioning && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="mt-2 p-2 bg-gray-800/30 rounded-xl border border-gray-700/30 max-h-48 overflow-y-auto backdrop-blur-sm"
+                    >
+                      {isLoadingUsers ? (
+                        <div className="flex justify-center p-4">
+                          <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
+                        </div>
+                      ) : (
+                        suggestedUsers.map((user) => (
+                          <button
+                            key={user.id}
+                            onClick={() => addMention(user.Username)}
+                            className="flex items-center gap-3 w-full p-3 hover:bg-violet-500/10 rounded-lg transition-all duration-200"
+                          >
+                            {user.ProfilePicture ? (
+                              <img
+                                src={user.ProfilePicture}
+                                alt=""
+                                className="w-8 h-8 rounded-full"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center text-white font-medium">
+                                {user.Username?.[0]?.toUpperCase()}
+                              </div>
+                            )}
+                            <div className="text-left">
+                              <div className="text-white font-medium">
+                                {user.Name}
+                              </div>
+                              <div className="text-gray-400 text-sm">
+                                @{user.Username}
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Error Message */}
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 20 }}
+                      className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400"
+                    >
+                      {error}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Footer */}
+              <div className="sticky bottom-0 p-4 border-t border-gray-700/30 backdrop-blur-md bg-gray-900/80">
+                <button
+                  onClick={handleSubmit}
+                  disabled={
+                    isSubmitting || (!content.trim() && images.length === 0)
+                  }
+                  className="w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-600 text-white rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Creating post...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      <span>Post</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+          <MessageAlert
+            message={alertMessage}
+            isVisible={showAlert}
+            onClose={() => setShowAlert(false)}
+            type={alertMessage.includes("successfully") ? "success" : "error"}
+            position={alertMessage.includes("successfully") ? "bottom" : "top"}
+          />
+        </>
       )}
     </AnimatePresence>
   );

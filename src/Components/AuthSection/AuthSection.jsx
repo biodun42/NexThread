@@ -18,9 +18,9 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, query, where, getDocs } from "firebase/firestore";
-import { toast } from "react-toastify";
+import { doc, setDoc, query, where, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import MessageAlert from "../UI/MessageAlert";
 
 const AuthSection = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -39,6 +39,8 @@ const AuthSection = () => {
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [profilePictureUrl, setProfilePictureUrl] = useState(null);
   const [imageFetching, setImageFetching] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [showAlert, setShowAlert] = useState(false);
 
   const navigate = useNavigate();
 
@@ -105,6 +107,26 @@ const AuthSection = () => {
     }
   };
 
+  const getReadableErrorMessage = (error) => {
+    const errorMap = {
+      "auth/email-already-in-use":
+        "This email is already registered. Please sign in or use a different email.",
+      "auth/invalid-email": "Please enter a valid email address.",
+      "auth/weak-password": "Password should be at least 6 characters long.",
+      "auth/user-not-found":
+        "No account found with this email. Please sign up.",
+      "auth/wrong-password": "Incorrect password. Please try again.",
+      "auth/network-request-failed":
+        "Network error. Please check your connection.",
+      "auth/too-many-requests": "Too many attempts. Please try again later.",
+      "auth/invalid-credential": "Invalid login credentials. Please try again.",
+    };
+
+    return (
+      errorMap[error.code] || "An unexpected error occurred. Please try again."
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSignUp && currentStep < 4) {
@@ -143,18 +165,22 @@ const AuthSection = () => {
           lastSeen: serverTimestamp(),
         });
 
-        toast.success("Welcome to NexThread! 🎉");
+        setAlertMessage("Welcome to NexThread! 🎉");
+        setShowAlert(true);
+        navigate("/");
       } else {
         await signInWithEmailAndPassword(
           auth,
           formData.email,
           formData.password
         );
-        toast.success("Welcome back to NexThread! 🎉");
+        setAlertMessage("Welcome back to NexThread! 🎉");
+        setShowAlert(true);
+        navigate("/");
       }
-      navigate("/home");
     } catch (error) {
-      toast.error(error.message);
+      setAlertMessage(getReadableErrorMessage(error));
+      setShowAlert(true);
     } finally {
       setLoading(false);
     }
@@ -504,6 +530,13 @@ const AuthSection = () => {
           </div>
         </div>
       </motion.div>
+      <MessageAlert
+        message={alertMessage}
+        isVisible={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertMessage.includes("Welcome") ? "success" : "error"}
+        position={alertMessage.includes("Welcome") ? "bottom" : "top"}
+      />
     </div>
   );
 };

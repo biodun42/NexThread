@@ -4,11 +4,12 @@ const StateContext = createContext();
 
 export const StateContextProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [userProfileData, setUserProfileData] = useState(null);
   const [headerMessages, setHeaderMessages] = useState([]);
 
   const updateHeaderMessages = (newMessage) => {
     setHeaderMessages((prev) => {
-      const messages = [newMessage, ...prev].slice(0, 5); 
+      const messages = [newMessage, ...prev].slice(0, 5);
       return messages;
     });
   };
@@ -18,6 +19,8 @@ export const StateContextProvider = ({ children }) => {
       value={{
         user,
         setUser,
+        userProfileData,
+        setUserProfileData,
         headerMessages,
         updateHeaderMessages,
       }}
