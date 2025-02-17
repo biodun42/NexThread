@@ -19,7 +19,8 @@ import { auth } from "../Firebase/Firebase";
 import { toast } from "react-toastify";
 import { useStateContext } from "../Context/Statecontext";
 
-const Sidebar = () => {
+// Add prop to receive chat state
+const Sidebar = ({ isChatOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobile, setIsMobile] = useState(null);
@@ -199,10 +200,11 @@ const Sidebar = () => {
 
   const MobileNavigation = () => (
     <motion.div
-      // initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="fixed z-[100] bottom-0 left-0 right-0 bg-gradient-to-b from-gray-900/95 to-gray-800/95 backdrop-blur-lg border-t border-white/10"
+      className={`fixed z-[100] bottom-0 left-0 right-0 bg-gradient-to-b from-gray-900/95 to-gray-800/95 backdrop-blur-lg border-t border-white/10 ${
+        isChatOpen ? 'hidden' : 'block'
+      }`}
     >
       <div className="flex justify-around items-center p-2">
         {menuItems.slice(0, 5).map((item, index) => (
@@ -246,7 +248,7 @@ const Sidebar = () => {
 
   const MobileMenu = () => (
     <AnimatePresence>
-      {showMobileMenu && (
+      {showMobileMenu && !isChatOpen && ( // Add !isChatOpen condition
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -33,11 +33,11 @@ import ImageCarousel from "../UI/ImageCarousel";
 import Comments from "../UI/comment";
 import { toast } from "react-toastify";
 
-const renderContent = (viewMode, posts, renderPost, profile) => {
+const renderContent = (viewMode, posts, renderPost) => {
   switch (viewMode) {
     case "posts":
       return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {posts.map((post) => (
             <motion.div
               key={post.postId}
@@ -78,7 +78,6 @@ const ProfileSection = () => {
   const [likeCount, setLikeCount] = useState({});
   const [comments, setComments] = useState({});
   const navigate = useNavigate();
-
 
   const fileInputRef = useRef(null);
   const { userId } = useParams();
@@ -305,10 +304,7 @@ const ProfileSection = () => {
 
   const renderPost = (post) => {
     return (
-      <div
-        key={post.postId}
-        className="bg-gray-800/50 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-700/50 overflow-hidden group w-full"
-      >
+      <div key={post.postId}>
         {post.images && post.images.length > 0 && (
           <>
             <ImageCarousel
@@ -339,7 +335,6 @@ const ProfileSection = () => {
       </div>
     );
   }
-
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -383,7 +378,7 @@ const ProfileSection = () => {
       <motion.div
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="container mx-auto px-4 -mt-32 relative z-10"
+        className="container mx-auto -mt-24 px-1 relative z-10"
       >
         <div className="flex flex-col items-center">
           <motion.div whileHover={{ scale: 1.05 }} className="relative group">
@@ -490,10 +485,9 @@ const ProfileSection = () => {
             </motion.div>
           ) : (
             <>
-              <h1 className="text-3xl font-bold mt-4">
-                {profile?.Name}
-              </h1>
+              <h1 className="text-3xl font-bold mt-4">{profile?.Name}</h1>
               <p className="text-gray-400">@{profile?.Username}</p>
+              <p className="text-gray-400">{profile?.Email}</p>
               {profile?.bio && (
                 <p className="mt-2 text-center max-w-md text-gray-300">
                   {profile.bio}

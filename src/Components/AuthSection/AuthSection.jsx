@@ -136,9 +136,11 @@ const AuthSection = () => {
           Initials: initials,
           CreatedAt: new Date(),
           followers: [],
-          following:[],
+          following: [],
           bio: "",
           location: "",
+          isOnline: false,
+          lastSeen: serverTimestamp(),
         });
 
         toast.success("Welcome to NexThread! 🎉");

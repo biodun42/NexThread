@@ -18,7 +18,14 @@ import {
   usersFriendsCollection,
   messagesCollection,
 } from "../Firebase/Firebase";
-import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import CreatePostModal from "../Modal/CreatePostModal";
 import Logo from "../../assets/logo.svg";
@@ -29,15 +36,15 @@ const Header = () => {
   const [name, setName] = useState("");
   const [initials, setInitials] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
-  const { user, setUser } = useStateContext();
+  const { user, setUser, headerMessages: messages } = useStateContext();
   const [notifications, setNotifications] = useState([]);
-  const [messages, setMessages] = useState([]);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
 
   // Check for mobile view
   useEffect(() => {
@@ -95,6 +102,55 @@ const Header = () => {
     CheckForArrays();
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const updateOnlineStatus = async (status) => {
+      try {
+        const userRef = doc(usersCollection, user);
+        await updateDoc(userRef, {
+          isOnline: status,
+          lastSeen: status ? null : serverTimestamp(),
+        });
+      } catch (error) {
+        console.error("Error updating online status:", error);
+      }
+    };
+
+    // Set online when component mounts
+    updateOnlineStatus(true);
+    setIsOnline(true);
+
+    // Handle window focus/blur
+    const handleVisibilityChange = () => {
+      const status = !document.hidden;
+      setIsOnline(status);
+      updateOnlineStatus(status);
+    };
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      updateOnlineStatus(true);
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      updateOnlineStatus(false);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Cleanup
+    return () => {
+      updateOnlineStatus(false);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [user]);
+
   const handleLogout = async () => {
     try {
       await auth.signOut();
@@ -108,7 +164,7 @@ const Header = () => {
     /* User Profile Component */
   }
   const UserProfile = ({ profilePic, initials }) => (
-    <div className="user-profile">
+    <div className="user-profile relative">
       {profilePic ? (
         <img
           src={profilePic}
@@ -123,6 +179,10 @@ const Header = () => {
           {initials}
         </div>
       )}
+      <div
+        className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-gray-800
+        ${isOnline ? "bg-green-500" : "bg-gray-500"}`}
+      />
     </div>
   );
 

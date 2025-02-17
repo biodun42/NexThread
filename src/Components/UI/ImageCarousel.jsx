@@ -119,12 +119,12 @@ const ImageCarousel = ({
           <div>
             <motion.p
               whileHover={{ color: "#60A5FA" }}
-              className="font-semibold text-gray-900 dark:text-white cursor-pointer"
+              className="font-semibold text-white cursor-pointer"
               onClick={() => navigate(`/profile/${post.userId}`)}
             >
               {post.Name}
             </motion.p>
-            <div className="flex items-center text-xs text-gray-500">
+            <div className="flex items-center text-xs text-gray-200">
               <Globe className="w-3 h-3 mr-1" />
               <span>
                 {formatDistanceToNow(new Date(post.timestamp), {
@@ -246,7 +246,7 @@ const ImageCarousel = ({
                 className={`w-6 h-6 ${
                   isLiked
                     ? "text-red-500 fill-red-500"
-                    : "text-gray-600 dark:text-gray-400"
+                    : "text-gray-400"
                 }`}
               />
             </motion.button>
@@ -256,7 +256,7 @@ const ImageCarousel = ({
               onClick={onComment}
               className="p-1"
             >
-              <MessageCircle className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              <MessageCircle className="w-6 h-6 text-gray-400" />
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -264,7 +264,7 @@ const ImageCarousel = ({
               onClick={onShare}
               className="p-1"
             >
-              <Share className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              <Share className="w-6 h-6 text-gray-400" />
             </motion.button>
           </div>
           <motion.button
@@ -277,7 +277,7 @@ const ImageCarousel = ({
               className={`w-6 h-6 ${
                 isSaved
                   ? "text-yellow-500 fill-yellow-500"
-                  : "text-gray-600 dark:text-gray-400"
+                  : "text-gray-400"
               }`}
             />
           </motion.button>
@@ -285,7 +285,7 @@ const ImageCarousel = ({
 
         {/* Likes */}
         <motion.p
-          className="font-semibold text-gray-900 dark:text-white mb-2"
+          className="font-semibold text-white mb-2"
           initial={false}
           animate={{ scale: likes > 0 ? [1, 1.1, 1] : 1 }}
         >
@@ -296,7 +296,7 @@ const ImageCarousel = ({
 
         {/* Caption */}
         {post?.content && (
-          <p className="text-gray-800 dark:text-gray-200 mb-2">
+          <p className="text-gray-200 mb-2">
             <span className="font-semibold mr-2">{post.Name}</span>
             {post.content}
           </p>
@@ -307,14 +307,14 @@ const ImageCarousel = ({
           <motion.button
             whileHover={{ x: 5 }}
             onClick={onComment}
-            className="text-gray-500 text-sm mb-2"
+            className="text-gray-400 text-sm mb-2"
           >
             View all {comments.length} comments
           </motion.button>
         )}
 
         {/* Timestamp */}
-        <p className="text-xs text-gray-400 uppercase">
+        <p className="text-xs text-gray-500 uppercase">
           {formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}
         </p>
       </div>
